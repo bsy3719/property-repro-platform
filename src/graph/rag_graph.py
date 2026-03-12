@@ -9,11 +9,11 @@ from src.services.vector_db_service import LocalVectorDB
 
 
 TOPIC_QUERIES = {
-    "model": "What model architecture does the paper use for LFL prediction?",
-    "feature": "What feature representation/input features are used for LFL prediction?",
-    "hyperparameter": "What hyperparameters are reported for the LFL prediction model?",
-    "training": "What training setup is used for LFL prediction (split, seed, optimizer, lr, epoch, batch, loss, validation, early stopping)?",
-    "metrics": "What evaluation metrics and reported values are provided for LFL prediction?",
+    "model": "For boiling point regression only, identify the single best-performing or final reported model. Ignore classification or other property tasks.",
+    "feature": "For the same single best-performing or final boiling point regression model, what feature representation or input features are used? Ignore classification or other property tasks.",
+    "hyperparameter": "For the same single best-performing or final boiling point regression model, what hyperparameters are reported? Ignore classification or other property tasks.",
+    "training": "For the same single best-performing or final boiling point regression model, what training setup is used (split, seed, optimizer, lr, epoch, batch, loss, validation, early stopping)? Ignore classification or other property tasks.",
+    "metrics": "For the same single best-performing or final boiling point regression model, what regression metrics and reported values are provided? Ignore classification metrics or other property tasks.",
 }
 
 
@@ -25,6 +25,7 @@ class RagState(TypedDict, total=False):
     retrieved: list[dict[str, Any]]
     retrieved_by_topic: dict[str, list[dict[str, Any]]]
     summary_markdown: str
+    paper_method_spec: dict[str, Any]
     error: str
 
 
@@ -68,12 +69,15 @@ def _to_summary(state: RagState) -> RagState:
     if state.get("error"):
         return state
 
-    agent = RetrieverTableAgent(model_name="gpt-5-mini")
+    agent = RetrieverTableAgent(model_name="gpt-5.2")
     result = agent.invoke(retrieved_by_topic=state.get("retrieved_by_topic", {}))
     if result.get("error"):
         return {"error": result["error"]}
 
-    return {"summary_markdown": result.get("summary_markdown", "")}
+    return {
+        "summary_markdown": result.get("summary_markdown", ""),
+        "paper_method_spec": result.get("paper_method_spec", {}),
+    }
 
 
 def build_graph():

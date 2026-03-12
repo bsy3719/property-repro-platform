@@ -37,7 +37,7 @@ def _run_paper_parsing_agent(state: PaperParseState) -> PaperParseState:
     if state.get("error"):
         return state
 
-    agent = PaperParsingAgent(model_name="gpt-5-mini")
+    agent = PaperParsingAgent(model_name="gpt-5.2")
     result = agent.invoke(state.get("raw_text", ""))
     if result.get("error"):
         return {"error": result["error"]}
