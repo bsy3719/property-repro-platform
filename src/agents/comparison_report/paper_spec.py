@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from src.utils.chemistry_features import analyze_feature_text
+
 from .schemas import MODEL_ALIASES, MODEL_CLASS_NAMES
 
 
@@ -62,9 +64,9 @@ def paper_preprocessing_text(text: str) -> str:
 
 def paper_feature_text(row: dict[str, Any]) -> str:
     text = row_text(row)
-    lowered = text.lower()
-    has_descriptor = "descriptor" in lowered or "rdkit" in lowered
-    has_morgan = "morgan" in lowered or "fingerprint" in lowered
+    analysis = analyze_feature_text(text)
+    has_descriptor = bool(analysis["descriptor_names"] or analysis["count_feature_names"] or analysis["has_descriptor_signal"])
+    has_morgan = bool(analysis["fingerprint_family"])
     if has_descriptor and has_morgan:
         return format_morgan_descriptor_text(text)
     if has_morgan:

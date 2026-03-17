@@ -15,7 +15,6 @@ def parse_raw_string(raw_text: str) -> dict[str, Any]:
         "training": {},
         "metrics": ["MAE", "RMSE", "MSE", "R2"],
         "paper_markdown": raw_text,
-        "model_anchor_summary": "",
         "paper_method_spec": {},
     }
 
@@ -49,7 +48,6 @@ def normalize_dict(raw_info: dict[str, Any]) -> dict[str, Any]:
 
     target_property = raw_info.get("target_property") or raw_info.get("property") or "boiling_point"
     paper_markdown = str(raw_info.get("paper_markdown") or raw_info.get("notes") or "")
-    model_anchor_summary = str(raw_info.get("model_anchor_summary") or raw_info.get("retriever_summary") or "")
     paper_method_spec = raw_info.get("paper_method_spec", {})
     if not isinstance(paper_method_spec, dict):
         paper_method_spec = {}
@@ -66,6 +64,5 @@ def normalize_dict(raw_info: dict[str, Any]) -> dict[str, Any]:
         "training": training_spec,
         "metrics": metric_spec,
         "paper_markdown": paper_markdown,
-        "model_anchor_summary": model_anchor_summary,
         "paper_method_spec": paper_method_spec,
     }

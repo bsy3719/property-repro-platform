@@ -4,6 +4,8 @@ import ast
 import json
 from typing import Any
 
+from src.utils.paper_method_spec import format_feature_label
+
 from .paper_spec import format_morgan_descriptor_text, format_morgan_text
 from .schemas import MODEL_CLASS_NAMES
 
@@ -77,6 +79,11 @@ def execution_preprocessing_text(code: str, spec: dict[str, Any]) -> str:
 
 def execution_feature_text(code: str, spec: dict[str, Any]) -> str:
     pipeline = spec.get("feature_pipeline", {})
+    if isinstance(pipeline, dict) and pipeline:
+        formatted_label = format_feature_label(pipeline)
+        if formatted_label:
+            return formatted_label
+
     method = pipeline.get("method")
     if method == "combined":
         return format_morgan_descriptor_text(json.dumps(pipeline, ensure_ascii=False))

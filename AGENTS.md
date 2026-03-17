@@ -2,102 +2,148 @@
 
 ## Project
 - Name: `property-repro-platform`
-- Root: `C:\Users\bsy\project\property-repro-platform`
-- Purpose: reproduce machine learning experiments from chemistry/property prediction papers and compare reproduced regression metrics with the paper.
+- Root: `/home/bsy/project/property-repro-platform`
+- Purpose: reproduce machine learning experiments from chemistry/property prediction papers and compare reproduced regression metrics with the paper
 - Current target property: `boiling point`
-- Current UI: `Streamlit`
-- Agent framework: `LangGraph`
-- LLM model default: `gpt-5.2`
-- Embedding model: `text-embedding-3-large`
+- Main framework: `LangGraph`
+- Default chat model: `gpt-5.2`
+- Default embedding model: `text-embedding-3-large`
 
 ## Environment
 - Conda env: `paper2property`
-- Important env var: `.env` contains `OPENAI_API_KEY`
-- Main runtime command:
-  - `streamlit run app\app.py`
-- Python path often used:
-  - `C:\Users\bsy\anaconda3\envs\paper2property\python.exe`
+- Important env vars:
+  - `.env` contains `OPENAI_API_KEY`
+  - optional `OPENAI_CHAT_MODEL`
+  - optional `OPENAI_EMBEDDING_MODEL`
+- Common Python path:
+  - `/home/bsy/miniconda3/envs/paper2property/bin/python`
+
+## Run Commands
+- FastAPI + HTML UI:
+  - `conda run -n paper2property python app/fastapi_server.py`
+  - serves on `http://localhost:8790/`
+- Tests:
+  - `conda run -n paper2property python -m pytest tests/`
+- Quick syntax check:
+  - `conda run -n paper2property python -m compileall app src tests`
+
+## Current UI
+### FastAPI + HTML
+- Shared backend: `app/backend_core.py`
+- API server: `app/fastapi_server.py`
+- HTML client: `app/chem_repro_platform.html`
 
 ## Current Pipeline
-1. Upload paper PDF and tabular data (`csv`, `xlsx`, `xls`) in Streamlit.
-2. Select `SMILES` column and target column for `boiling point`.
-3. Parse PDF with `pypdf` and convert to markdown while preserving paper structure and filtering useless sections such as references.
-4. Cache markdown by PDF hash so the same PDF is not parsed repeatedly.
-5. Build local vector DB from markdown chunks using OpenAI embeddings.
-6. Retrieve `model / feature / hyperparameter / training / metrics` for boiling point regression.
-7. Summarize retrieval results for reporting.
-8. Generate executable Python regression code with LangGraph.
-9. Execute generated code with LangGraph.
-10. Run `generate -> run -> debug` loop with LangGraph when execution fails.
+1. Upload paper PDF and tabular data (`csv`, `xlsx`, `xls`)
+2. Detect `SMILES` column and target column with `ColumnSelectionAgent`
+3. Allow user confirmation of selected columns
+4. Parse PDF with `pypdf` and convert to markdown while preserving useful paper structure
+5. Cache markdown by PDF hash in `artifacts/markdown_cache`
+6. Build local vector DB from markdown chunks using OpenAI embeddings
+7. Retrieve `model / feature / hyperparameter / training / metrics` with chemistry-aware multi-query RAG
+8. Convert retrieval output into structured `paper_method_spec`
+9. Generate executable Python regression code with LangGraph
+10. Execute generated code with LangGraph
+11. Run `generate -> run -> debug` loop when execution fails
+12. Optionally compare reproduced metrics with paper metrics
 
 ## Input Policy For Code Generation
-- Main source of truth: full paper markdown.
-- Anchor source: retriever/model summary table.
+- Main source of truth: structured `paper_method_spec`
+- Background context: full paper markdown
 - Required behavior:
-  - use full markdown for implementation context.
-  - use model summary as the anchor for the selected best model/configuration.
-  - if markdown and summary conflict, prefer summary for the final selected model, but use markdown for surrounding implementation details.
+  - use structured spec as the primary implementation contract
+  - use markdown only as background context outside code generation when needed
+  - if markdown and spec conflict, prefer the final structured spec for selected model details
 - Goal of generated code:
-  - run the machine learning model described in the paper.
-  - obtain regression metrics from the reproduced run.
+  - run the machine learning model described in the paper
+  - obtain regression metrics from the reproduced run
 
-## Code Generation Rules
-- Generate raw Python code only.
-- Never return markdown fences like ```` ```python ````.
-- Use `RDKit` for SMILES featurization.
-- Use `sklearn` for modeling.
+## Chemistry-Aware Code Generation Rules
+- Generate raw Python code only
+- Never return markdown fences like ```` ```python ````
+- Use `RDKit` for SMILES featurization
+- Use `scikit-learn` for modeling
 - Always include metrics:
   - `MAE`
   - `RMSE`
   - `MSE`
   - `R2`
-- Handle missing/incomplete paper details with reasonable defaults.
-- Default preprocessing fallback includes:
-  - invalid SMILES drop
-  - missing target drop
-  - duplicate removal
-  - median imputation when needed
-  - scaling when model type requires it
-- Do not use identifier-like columns as model features.
-- Exclude these from additional tabular features:
-  - `smiles`
-  - target column
-  - compound/name/id/inchi/cas-like columns
-- Use SMILES only for RDKit feature generation.
+- Use the canonical scaffold expected by validation:
+  - `SPEC`
+  - `load_dataframe`
+  - `mol_from_smiles`
+  - `build_descriptor_matrix`
+  - `build_count_feature_matrix`
+  - `build_fingerprint_matrix`
+  - `assemble_feature_matrix`
+  - `build_model`
+  - `train_and_evaluate`
+  - `main`
+- Prefer explicit chemistry features from the paper over full-descriptor fallback
+- Supported chemistry feature families currently focus on `RDKit only`
+- Handle named RDKit descriptors, count features, and fingerprints such as:
+  - descriptor subsets from `Descriptors.descList`
+  - count features like `HeavyAtomCount`, `RingCount`, `NumRotatableBonds`, `NHOHCount`, `NOCount`
+  - Morgan/ECFP, MACCS, atom-pair, topological torsion, RDKit fingerprints
+- If unsupported external descriptor tools such as Mordred/PaDEL/Dragon are mentioned without implementable detail:
+  - keep them as warnings/assumptions
+  - do not silently map them to different chemistry features
+
+## Central Structured Contract
+### `paper_method_spec`
+- Main structured output of the RAG stage
+- Used as the authoritative input for code generation and reporting
+- Important `feature` fields now include:
+  - `method`
+  - `descriptor_names`
+  - `count_feature_names`
+  - `fingerprint_family`
+  - `radius`
+  - `n_bits`
+  - `feature_terms`
+  - `unresolved_feature_terms`
 
 ## Implemented Agents
 ### `src/agents/paper_parsing_agent.py`
-- Parses extracted PDF text into markdown.
-- Preserves paper structure.
-- Filters references/appendix-like sections.
+- Parses extracted PDF text into markdown
+- Preserves paper structure
+- Filters references/appendix-like sections
 
 ### `src/agents/retriever_table_agent.py`
-- Summarizes retrieved paper evidence.
-- Current purpose: report-oriented summary for boiling point regression.
+- Assembles retrieved paper evidence into normalized `paper_method_spec`
+- Produces report-friendly summaries derived from the structured spec
 
-### `src/agents/code_generation_agent.py`
-- LangGraph-based code generation agent.
-- Inputs:
-  - `paper_markdown`
-  - `model_anchor_summary`
-  - dataset info
-- Produces executable Python regression code.
-- Sanitizes markdown fences if model output includes them.
-- Validates presence of rdkit/sklearn/metrics and Python syntax.
+### `src/agents/column_selection_agent.py`
+- LLM-based detection of `SMILES` and target columns from uploaded tabular data
+
+### `src/agents/code_generation/`
+- Main code generation package
+- Important modules:
+  - `agent.py`
+  - `prompting.py`
+  - `validation.py`
+  - `normalization.py`
+  - `defaults.py`
+  - `fallback_script.py`
+  - `few_shot_examples.py`
+- Includes chemistry-aware prompt construction, normalization, fallback generation, and validation
 
 ### `src/agents/code_execution_agent.py`
-- Saves generated code to file if needed.
-- Builds execution command.
-- Runs the generated script.
-- Parses JSON-like stdout.
-- Returns metrics, stdout, stderr, return code.
+- Saves generated code if needed
+- Builds execution command
+- Runs the generated script
+- Parses JSON-like stdout
+- Returns metrics, stdout, stderr, return code
 
 ### `src/agents/code_loop_agent.py`
-- LangGraph loop agent.
-- Flow: `generate -> run -> debug`.
-- Default max iteration used in UI: `4`.
-- Hard clamp: `3~5`.
-- Stops if same error repeats at least 2 times.
+- LangGraph loop agent
+- Flow: `generate -> run -> debug`
+- Default max iteration used in UI: `4`
+- Hard clamp: `3~5`
+- Stops if the same error repeats at least 2 times
+
+### `src/agents/comparison_report/`
+- Builds paper-vs-reproduced metric comparison reports
 
 ## Implemented Graph Entrypoints
 - `src/graph/paper_parsing_graph.py`
@@ -105,38 +151,33 @@
 - `src/graph/code_generation_graph.py`
 - `src/graph/code_execution_graph.py`
 - `src/graph/code_loop_graph.py`
+- `src/graph/comparison_report_graph.py`
 
-## UI Structure
-Main file:
-- `app/app.py`
-
-Current Streamlit sections:
-1. PDF upload
-2. Data upload
-3. Column selection
-4. Preview
-5. PDF parsing and markdown display
-6. Vector DB + retriever summary
-7. Code generation
-8. Code execution / auto-debug loop
-
-Important UI behavior:
-- Generated Python code should appear only once.
-- There is a direct execution button.
-- There is an auto-debug execution button.
+## Retrieval / Feature Notes
+- `src/graph/rag_graph.py` uses multi-query retrieval for chemistry feature discovery
+- Feature retrieval now expands across terms like:
+  - descriptor
+  - physicochemical descriptor
+  - RDKit descriptor
+  - Morgan / ECFP / MACCS
+  - atom count / bond count / ring count
+  - graph / adjacency / bond matrix
+- `src/utils/chemistry_features.py` centralizes descriptor snapshots and alias normalization
 
 ## Storage / Caching
 - Raw uploads: `data/raw`
 - Markdown artifacts: `artifacts/`
 - Markdown cache by PDF hash: `artifacts/markdown_cache`
 - Generated code: `artifacts/generated_code`
+- Comparison reports: `artifacts/reports`
 - Local vector DB: `vectorstore/`
 
 ## Known Technical Notes
-- Streamlit server sometimes exits if launched in-process from the session.
-- More stable launch method has been using a separate PowerShell window.
-- `matplotlib` import works, but may warn about cache directory permissions under `C:\Users\bsy\.matplotlib`.
-- Numerical stack in `paper2property` was repaired after `numpy/scipy/sklearn` conflicts.
+- FastAPI sessions are currently stored in memory in `app/fastapi_server.py`
+- HTML UI is step-based and calls the backend through `/api/upload`, `/api/select-sheet`, `/api/confirm-columns`, `/api/parse-paper`, `/api/run-rag`, `/api/generate`
+- `pypdf` is required for paper parsing
+- `python-multipart` is required for FastAPI file upload handling
+- `matplotlib` may still warn about cache directory permissions depending on environment
 
 ## Installed Packages Confirmed Recently
 - `rdkit`
@@ -145,17 +186,26 @@ Important UI behavior:
 - `scipy`
 - `matplotlib`
 - `seaborn`
-- `pandas 2.3.3`
+- `pandas`
+- `pypdf`
+- `fastapi`
+- `uvicorn`
+- `python-multipart`
 
 ## Current Conventions
-- Do not ask before normal implementation work; execute directly unless there is hidden risk.
-- Prefer editing files directly over relying on nonexistent init helpers.
-- Keep responses concise.
-- For this project, use boiling point regression assumptions unless explicitly changed.
+- Do not ask before normal implementation work; execute directly unless there is hidden risk
+- Prefer editing files directly over relying on nonexistent init helpers
+- Keep responses concise
+- For this project, use boiling point regression assumptions unless explicitly changed
+- When working on chemistry feature extraction/codegen, prefer explicit descriptor/count/fingerprint evidence over generic full-descriptor fallback
+
+## Validation / Testing Status
+- Unit tests exist in `tests/`
+- Recent chemistry-aware code generation tests live under `tests/test_chemistry_code_generation.py`
+- End-to-end validation still requires running the UI and actual model/API calls
 
 ## Next Likely Tasks
-- Generate final comparison report between paper metrics and reproduced metrics.
-- Improve retriever summary format for report generation.
-- Connect execution results to reporting agent.
-- Optionally stabilize matplotlib cache path with `MPLCONFIGDIR`.
-- Optionally add structured export of code-generation/report artifacts.
+- Connect comparison report generation into the FastAPI/HTML flow
+- Add persistent session storage for FastAPI instead of in-memory sessions
+- Improve end-to-end validation for the alternative HTML UI
+- Export structured run artifacts for report/debug review

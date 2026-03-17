@@ -1,0 +1,2791 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChemRepro — 논문 재현 플랫폼</title>
+<style>
+/* =============================================
+   CSS VARIABLES & RESET
+============================================= */
+:root {
+  --bg-base:       #0d0f14;
+  --bg-surface:    #13161e;
+  --bg-raised:     #1a1e2a;
+  --bg-hover:      #1f2433;
+  --bg-card:       #161923;
+
+  --border:        #252a38;
+  --border-subtle: #1d2130;
+
+  --accent:        #4f8ef7;
+  --accent-dim:    rgba(79,142,247,0.12);
+  --accent-glow:   rgba(79,142,247,0.25);
+  --green:         #3ecf8e;
+  --green-dim:     rgba(62,207,142,0.12);
+  --amber:         #f5a623;
+  --amber-dim:     rgba(245,166,35,0.12);
+  --red:           #e05c6a;
+  --red-dim:       rgba(224,92,106,0.12);
+  --purple:        #a78bfa;
+  --purple-dim:    rgba(167,139,250,0.12);
+  --cyan:          #22d3ee;
+  --cyan-dim:      rgba(34,211,238,0.10);
+
+  --text-primary:  #e8ecf4;
+  --text-secondary:#8b93a8;
+  --text-muted:    #50596e;
+  --text-disabled: #333a4d;
+
+  --step-active:   var(--accent);
+  --step-done:     var(--green);
+  --step-idle:     var(--text-muted);
+
+  --font-sans: 'DM Sans', 'Noto Sans KR', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-display: 'DM Sans', sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  --shadow-card: 0 2px 12px rgba(0,0,0,0.4);
+  --shadow-float: 0 8px 32px rgba(0,0,0,0.5);
+  --shadow-glow: 0 0 24px var(--accent-glow);
+
+  --nav-w: 220px;
+  --panel-w: 300px;
+  --header-h: 56px;
+  --sidebar-collapsed-w: 64px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 14px; scroll-behavior: smooth; }
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* =============================================
+   SCROLLBAR
+============================================= */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* =============================================
+   GOOGLE FONTS IMPORT (CDN)
+============================================= */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap');
+
+/* =============================================
+   LAYOUT SKELETON
+============================================= */
+#app {
+  display: grid;
+  grid-template-rows: var(--header-h) 1fr;
+  grid-template-columns: var(--nav-w) 1fr var(--panel-w);
+  grid-template-areas:
+    "header header header"
+    "nav    main   panel";
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* =============================================
+   HEADER
+============================================= */
+#header {
+  grid-area: header;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+  z-index: 100;
+  position: relative;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.logo-icon {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, var(--accent), var(--cyan));
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+
+.logo span { color: var(--accent); }
+
+.header-divider {
+  width: 1px; height: 20px;
+  background: var(--border);
+}
+
+.header-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.header-breadcrumb .crumb-active {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.badge-session {
+  background: var(--green-dim);
+  color: var(--green);
+  border: 1px solid rgba(62,207,142,0.25);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.badge-session::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.btn-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  font-size: 13px;
+}
+
+.btn-icon:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* =============================================
+   LEFT NAV
+============================================= */
+#nav {
+  grid-area: nav;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 20px 0;
+}
+
+.nav-section-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-disabled);
+  padding: 0 16px 8px;
+  margin-top: 4px;
+}
+
+.step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.step-item:hover { background: var(--bg-hover); }
+
+.step-item.active {
+  border-left-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.step-item.done .step-num {
+  background: var(--green);
+  color: #000;
+  border-color: var(--green);
+}
+
+.step-item.done .step-title { color: var(--text-primary); }
+
+.step-item.active .step-num {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.step-item.active .step-title { color: var(--accent); }
+
+.step-num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: all 0.2s;
+}
+
+.step-content { flex: 1; min-width: 0; }
+
+.step-title {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-subtitle {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.step-connector {
+  width: 1.5px;
+  height: 10px;
+  background: var(--border-subtle);
+  margin: 0 auto 0 27px;
+}
+
+.step-connector.done-line { background: var(--green); opacity: 0.4; }
+
+.nav-bottom {
+  margin-top: auto;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.progress-track {
+  height: 3px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--cyan));
+  border-radius: 999px;
+  transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+}
+
+.progress-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* =============================================
+   MAIN AREA
+============================================= */
+#main {
+  grid-area: main;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg-base);
+}
+
+.main-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 28px 32px;
+}
+
+/* Step Header */
+.step-header {
+  margin-bottom: 24px;
+}
+
+.step-tag {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.step-title-h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.step-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  max-width: 600px;
+}
+
+/* Cards */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.card-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title-icon {
+  width: 24px; height: 24px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+}
+
+/* =============================================
+   STEP 1 — UPLOAD
+============================================= */
+.upload-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.upload-zone {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 36px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-card);
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-zone::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, var(--accent-dim) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.upload-zone:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.upload-zone:hover::before { opacity: 1; }
+
+.upload-zone.filled {
+  border-color: var(--green);
+  background: var(--green-dim);
+  border-style: solid;
+}
+
+.upload-zone.filled::before {
+  background: radial-gradient(ellipse at 50% 0%, var(--green-dim) 0%, transparent 70%);
+  opacity: 1;
+}
+
+.upload-icon {
+  font-size: 28px;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.upload-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.upload-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.upload-file-info {
+  margin-top: 12px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--green);
+  font-weight: 500;
+}
+
+.upload-zone.filled .upload-file-info { display: flex; }
+.upload-zone.filled .upload-default { display: none; }
+
+input[type="file"] { display: none; }
+
+/* =============================================
+   STEP 2 — COLUMN MAPPING
+============================================= */
+.table-container {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+}
+
+thead tr {
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--bg-hover); }
+
+.col-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.col-badge.smiles {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid rgba(79,142,247,0.25);
+}
+
+.col-badge.target {
+  background: var(--green-dim);
+  color: var(--green);
+  border: 1px solid rgba(62,207,142,0.25);
+}
+
+.col-badge.feature {
+  background: var(--purple-dim);
+  color: var(--purple);
+  border: 1px solid rgba(167,139,250,0.25);
+}
+
+.col-badge.ignore {
+  background: var(--bg-raised);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.col-selector {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  outline: none;
+  font-family: var(--font-sans);
+  transition: border-color 0.15s;
+}
+
+.col-selector:focus { border-color: var(--accent); }
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.stat-chip {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+.stat-chip-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.stat-chip-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.stat-chip-sub {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* =============================================
+   STEP 3 — PAPER PARSING
+============================================= */
+.parse-section {
+  margin-bottom: 16px;
+}
+
+.parse-section-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.parse-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.markdown-preview {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3 {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+
+.markdown-preview h1 { font-size: 1rem; }
+.markdown-preview h2 { font-size: 0.88rem; }
+.markdown-preview h3 { font-size: 0.8rem; color: var(--accent); }
+
+.markdown-preview p { margin-bottom: 8px; }
+
+.markdown-preview code {
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--cyan);
+}
+
+/* =============================================
+   STEP 4 — RAG EXTRACTION
+============================================= */
+.rag-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.rag-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+
+.rag-card-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.rag-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.rag-value small {
+  font-weight: 400;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+}
+
+.feature-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.feature-chip {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+  cursor: default;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.feature-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.feature-chip.highlight {
+  border-color: var(--purple);
+  color: var(--purple);
+  background: var(--purple-dim);
+}
+
+.feature-chip .chip-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+.confidence-bar-wrap {
+  margin-top: 6px;
+}
+
+.confidence-bar-wrap .label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.confidence-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.confidence-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--cyan));
+  transition: width 1s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* =============================================
+   STEP 5 — CODE GENERATION
+============================================= */
+.code-panel {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.code-panel-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--bg-base);
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+}
+
+.code-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.code-dots span {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+}
+
+.dot-red   { background: #e05c6a; }
+.dot-amber { background: #f5a623; }
+.dot-green { background: #3ecf8e; }
+
+.code-file-name {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  flex: 1;
+}
+
+.code-copy-btn {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 3px 9px;
+  font-size: 0.68rem;
+  transition: all 0.15s;
+  font-family: var(--font-sans);
+}
+
+.code-copy-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.code-body {
+  padding: 16px;
+  overflow-x: auto;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+pre {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.75;
+  color: var(--text-secondary);
+  white-space: pre;
+}
+
+.kw  { color: #c084fc; }  /* keywords */
+.fn  { color: #60a5fa; }  /* functions */
+.st  { color: #86efac; }  /* strings */
+.cm  { color: var(--text-muted); font-style: italic; }  /* comments */
+.nm  { color: #fca5a5; }  /* numbers */
+.cl  { color: #fbbf24; }  /* class names */
+.op  { color: #94a3b8; }  /* operators */
+
+/* =============================================
+   STEP 6 — RESULTS
+============================================= */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.metric-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.metric-card.good::before  { background: radial-gradient(ellipse at 0% 0%, var(--green-dim), transparent 60%); opacity: 1; }
+.metric-card.ok::before    { background: radial-gradient(ellipse at 0% 0%, var(--amber-dim), transparent 60%); opacity: 1; }
+.metric-card.bad::before   { background: radial-gradient(ellipse at 0% 0%, var(--red-dim), transparent 60%); opacity: 1; }
+.metric-card.info::before  { background: radial-gradient(ellipse at 0% 0%, var(--accent-dim), transparent 60%); opacity: 1; }
+
+.metric-name {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.metric-card.good .metric-value { color: var(--green); }
+.metric-card.ok   .metric-value { color: var(--amber); }
+.metric-card.bad  .metric-value { color: var(--red); }
+.metric-card.info .metric-value { color: var(--accent); }
+
+.metric-compare {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.metric-compare .paper-val {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.delta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+
+.delta-badge.pos { background: var(--green-dim); color: var(--green); }
+.delta-badge.neg { background: var(--red-dim); color: var(--red); }
+.delta-badge.neu { background: var(--bg-card); color: var(--text-muted); }
+
+.chart-wrap {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.chart-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+}
+
+.scatter-svg {
+  width: 100%;
+  height: 200px;
+}
+
+.report-section {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+/* =============================================
+   RIGHT PANEL
+============================================= */
+#panel {
+  grid-area: panel;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.panel-tab {
+  flex: 1;
+  padding: 12px 8px;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-tab:hover { color: var(--text-secondary); }
+.panel-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.panel-section {
+  margin-bottom: 20px;
+}
+
+.panel-section-title {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.status-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.status-item:last-child { border-bottom: none; }
+
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.status-dot.ok     { background: var(--green); }
+.status-dot.warn   { background: var(--amber); }
+.status-dot.error  { background: var(--red); }
+.status-dot.info   { background: var(--accent); }
+.status-dot.idle   { background: var(--border); }
+
+.status-text {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.status-text strong {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.evidence-item {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.evidence-item:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.evidence-quote {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  line-height: 1.5;
+  margin-bottom: 6px;
+  padding-left: 8px;
+  border-left: 2px solid var(--accent);
+}
+
+.evidence-meta {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+.evidence-score {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.assumption-item {
+  padding: 8px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.assumption-icon { font-size: 11px; flex-shrink: 0; margin-top: 1px; }
+
+/* =============================================
+   BUTTONS
+============================================= */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: var(--radius-md);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  font-family: var(--font-sans);
+  letter-spacing: 0.01em;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+.btn-primary:hover {
+  background: #6fa3ff;
+  box-shadow: 0 0 24px var(--accent-glow);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.btn-success {
+  background: var(--green);
+  color: #000;
+}
+
+.btn-success:hover { background: #5be0a8; }
+
+.btn-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.btn-row .spacer { flex: 1; }
+
+/* =============================================
+   LOADING STATES
+============================================= */
+.loading-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 16px 0;
+}
+
+.loading-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--cyan), var(--accent));
+  background-size: 200% 100%;
+  border-radius: 999px;
+  animation: shimmer 1.5s infinite linear;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; width: 40%; transform: translateX(-100%); }
+  100% { background-position: 0% 0; width: 60%; transform: translateX(200%); }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-raised) 25%, var(--bg-hover) 50%, var(--bg-raised) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.processing-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--amber-dim);
+  border: 1px solid rgba(245,166,35,0.25);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--amber);
+  margin-bottom: 14px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* =============================================
+   MISC COMPONENTS
+============================================= */
+.divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 20px 0;
+}
+
+.inline-code {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--cyan);
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.tag {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.info-banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--accent-dim);
+  border: 1px solid rgba(79,142,247,0.2);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.info-banner-icon { font-size: 15px; flex-shrink: 0; }
+
+.info-banner-text {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.info-banner-text strong { color: var(--accent); }
+
+/* Step visibility */
+.step-view { display: none; }
+.step-view.active { display: block; }
+
+/* Animate in */
+.step-view.active {
+  animation: fadeSlide 0.25s ease-out;
+}
+
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Panel tab content */
+.panel-content { display: none; }
+.panel-content.active { display: block; }
+
+/* =============================================
+   TOOLTIP
+============================================= */
+[data-tip] {
+  position: relative;
+}
+
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 200;
+}
+
+[data-tip]:hover::after { opacity: 1; }
+
+/* =============================================
+   MOBILE / RESPONSIVE
+============================================= */
+@media (max-width: 1100px) {
+  :root {
+    --panel-w: 0px;
+  }
+  #panel { display: none; }
+  #app {
+    grid-template-columns: var(--nav-w) 1fr;
+    grid-template-areas:
+      "header header"
+      "nav    main";
+  }
+  .metric-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --nav-w: 0px;
+    --header-h: 50px;
+  }
+  #nav { display: none; }
+  #app {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "main";
+  }
+  .main-inner { padding: 16px; }
+  .upload-grid  { grid-template-columns: 1fr; }
+  .rag-grid     { grid-template-columns: 1fr; }
+  .metric-grid  { grid-template-columns: 1fr 1fr; }
+  .stats-row    { grid-template-columns: 1fr 1fr; }
+  .step-title-h1 { font-size: 1.1rem; }
+
+  /* Mobile bottom nav */
+  .mobile-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border);
+    z-index: 200;
+    overflow-x: auto;
+    padding: 0 8px;
+  }
+
+  #main { padding-bottom: 60px; }
+}
+
+.mobile-nav {
+  display: none;
+}
+
+.mobile-step-btn {
+  flex: 1;
+  min-width: 48px;
+  padding: 10px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.6rem;
+  transition: all 0.15s;
+}
+
+.mobile-step-btn.active { color: var(--accent); }
+.mobile-step-btn .mb-icon { font-size: 16px; }
+
+/* =============================================
+   SMILES DISPLAY
+============================================= */
+.smiles-tag {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--cyan);
+  background: var(--bg-base);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  display: inline-block;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* =============================================
+   COMPARISON TABLE
+============================================= */
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.compare-table th {
+  background: var(--bg-base);
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.compare-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+}
+
+.compare-table tr:last-child td { border-bottom: none; }
+.compare-table tbody tr:hover td { background: var(--bg-hover); }
+
+.compare-ours { color: var(--accent); font-weight: 600; }
+.compare-paper { color: var(--text-secondary); }
+.compare-pass { color: var(--green); }
+.compare-fail { color: var(--red); }
+
+/* =============================================
+   TOGGLE / CHECKBOX
+============================================= */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.toggle {
+  width: 32px; height: 18px;
+  background: var(--border);
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.toggle.on { background: var(--accent); }
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+}
+
+.toggle.on::after { transform: translateX(14px); }
+
+.toggle-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.toggle-desc {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+/* =============================================
+   SVG SCATTER PLOT (inline)
+============================================= */
+.axis-label {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  fill: var(--text-muted);
+}
+
+.axis-line {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.diagonal-line {
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  opacity: 0.5;
+}
+
+.scatter-dot {
+  fill: var(--accent);
+  opacity: 0.65;
+  r: 3;
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+<!-- ===== HEADER ===== -->
+<header id="header">
+  <div class="logo">
+    <div class="logo-icon">⚗</div>
+    Chem<span>Repro</span>
+  </div>
+  <div class="header-divider"></div>
+  <div class="header-breadcrumb">
+    <span>New Session</span>
+    <span style="color:var(--text-disabled)">›</span>
+    <span class="crumb-active" id="breadcrumb-label">Upload Files</span>
+  </div>
+  <div class="header-right">
+    <div class="badge-session">Session Active</div>
+    <button class="btn-icon" data-tip="Settings">⚙</button>
+    <button class="btn-icon" data-tip="History">⊞</button>
+    <button class="btn-icon" data-tip="Help">?</button>
+  </div>
+</header>
+
+<!-- ===== LEFT NAV ===== -->
+<nav id="nav">
+  <div class="nav-section-label">Workflow</div>
+
+  <div class="step-item done" data-step="1" onclick="goStep(1)">
+    <div class="step-num">✓</div>
+    <div class="step-content">
+      <div class="step-title">파일 업로드</div>
+      <div class="step-subtitle">PDF + CSV/Excel</div>
+    </div>
+  </div>
+  <div class="step-connector done-line"></div>
+
+  <div class="step-item active" data-step="2" onclick="goStep(2)">
+    <div class="step-num">2</div>
+    <div class="step-content">
+      <div class="step-title">데이터 확인</div>
+      <div class="step-subtitle">컬럼 인식 · 통계</div>
+    </div>
+  </div>
+  <div class="step-connector"></div>
+
+  <div class="step-item" data-step="3" onclick="goStep(3)">
+    <div class="step-num">3</div>
+    <div class="step-content">
+      <div class="step-title">논문 파싱</div>
+      <div class="step-subtitle">Markdown 변환</div>
+    </div>
+  </div>
+  <div class="step-connector"></div>
+
+  <div class="step-item" data-step="4" onclick="goStep(4)">
+    <div class="step-num">4</div>
+    <div class="step-content">
+      <div class="step-title">RAG 추출</div>
+      <div class="step-subtitle">Feature · 모델 · 설정</div>
+    </div>
+  </div>
+  <div class="step-connector"></div>
+
+  <div class="step-item" data-step="5" onclick="goStep(5)">
+    <div class="step-num">5</div>
+    <div class="step-content">
+      <div class="step-title">코드 생성</div>
+      <div class="step-subtitle">RDKit + sklearn</div>
+    </div>
+  </div>
+  <div class="step-connector"></div>
+
+  <div class="step-item" data-step="6" onclick="goStep(6)">
+    <div class="step-num">6</div>
+    <div class="step-content">
+      <div class="step-title">실행 결과</div>
+      <div class="step-subtitle">Metric 비교 보고서</div>
+    </div>
+  </div>
+
+  <div class="nav-bottom">
+    <div class="progress-track">
+      <div class="progress-fill" id="nav-progress" style="width:16%"></div>
+    </div>
+    <div class="progress-label">
+      <span id="progress-steps">Step 2 of 6</span>
+      <span id="progress-pct">16%</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== MAIN ===== -->
+<main id="main">
+  <div class="main-inner">
+
+    <!-- ── STEP 1: UPLOAD ── -->
+    <div class="step-view" id="view-1">
+      <div class="step-header">
+        <div class="step-tag">Step 01 — Input</div>
+        <div class="step-title-h1">파일을 업로드하세요</div>
+        <div class="step-desc">논문 PDF와 분자 데이터(CSV/Excel)를 함께 업로드하면 자동으로 파싱이 시작됩니다.</div>
+      </div>
+
+      <div class="upload-grid">
+        <label for="pdf-input">
+          <div class="upload-zone" id="pdf-zone">
+            <div class="upload-default">
+              <span class="upload-icon">📄</span>
+              <div class="upload-title">논문 PDF</div>
+              <div class="upload-hint">클릭하거나 파일을 드래그하세요<br>.pdf 형식, 최대 50MB</div>
+            </div>
+            <div class="upload-file-info">
+              <span>✓</span>
+              <span id="pdf-name">paper.pdf</span>
+            </div>
+          </div>
+        </label>
+        <input type="file" id="pdf-input" accept=".pdf" onchange="handleFileUpload('pdf', this)">
+
+        <label for="data-input">
+          <div class="upload-zone" id="data-zone">
+            <div class="upload-default">
+              <span class="upload-icon">📊</span>
+              <div class="upload-title">분자 데이터</div>
+              <div class="upload-hint">클릭하거나 파일을 드래그하세요<br>.csv / .xlsx / .xls</div>
+            </div>
+            <div class="upload-file-info">
+              <span>✓</span>
+              <span id="data-name">molecules.csv</span>
+            </div>
+          </div>
+        </label>
+        <input type="file" id="data-input" accept=".csv,.xlsx,.xls" onchange="handleFileUpload('data', this)">
+      </div>
+
+      <div class="info-banner">
+        <div class="info-banner-icon">💡</div>
+        <div class="info-banner-text">
+          <strong>지원 형식:</strong> PDF(논문), CSV/Excel(분자 데이터). 데이터에는 반드시 <strong>SMILES</strong> 컬럼과 <strong>boiling point</strong> 또는 수치형 타겟 컬럼이 있어야 합니다.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--purple-dim);color:var(--purple)">⚙</div>
+          처리 옵션
+        </div>
+        <div class="toggle-row">
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          <div>
+            <div class="toggle-label">자동 컬럼 감지</div>
+            <div class="toggle-desc">SMILES 및 타겟 컬럼을 자동으로 식별합니다</div>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          <div>
+            <div class="toggle-label">RAG 파이프라인 활성화</div>
+            <div class="toggle-desc">논문에서 하이퍼파라미터 및 Feature를 자동 추출합니다</div>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle" onclick="this.classList.toggle('on')"></div>
+          <div>
+            <div class="toggle-label">실험적 Feature 포함</div>
+            <div class="toggle-desc">3D descriptor, Morgan fingerprint 확장 등</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <div class="spacer"></div>
+        <button class="btn btn-primary" onclick="goStep(2)">
+          다음 단계 →
+        </button>
+      </div>
+    </div>
+
+    <!-- ── STEP 2: COLUMN MAPPING ── -->
+    <div class="step-view active" id="view-2">
+      <div class="step-header">
+        <div class="step-tag">Step 02 — Data Inspection</div>
+        <div class="step-title-h1">컬럼 자동 인식 및 데이터 확인</div>
+        <div class="step-desc">업로드된 <span class="inline-code">molecules_boiling.csv</span> 파일에서 자동으로 컬럼을 인식했습니다. 역할을 확인하고 조정하세요.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--accent-dim);color:var(--accent)">≡</div>
+          컬럼 인식 결과
+          <span style="margin-left:auto;font-size:0.68rem;font-weight:400;color:var(--green)">✓ 자동 감지 완료</span>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>컬럼명</th>
+                <th>타입</th>
+                <th>역할</th>
+                <th>샘플 값</th>
+                <th>Null</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="color:var(--text-muted)">0</td>
+                <td><strong>smiles</strong></td>
+                <td><span style="color:var(--text-muted);font-size:0.65rem">object</span></td>
+                <td><span class="col-badge smiles">⬡ SMILES</span></td>
+                <td><span class="smiles-tag">CC(=O)Oc1ccccc1C(=O)O</span></td>
+                <td style="color:var(--green)">0</td>
+              </tr>
+              <tr>
+                <td style="color:var(--text-muted)">1</td>
+                <td><strong>bp_celsius</strong></td>
+                <td><span style="color:var(--text-muted);font-size:0.65rem">float64</span></td>
+                <td><span class="col-badge target">◎ Target</span></td>
+                <td><span style="font-family:var(--font-mono)">140.2</span></td>
+                <td style="color:var(--green)">0</td>
+              </tr>
+              <tr>
+                <td style="color:var(--text-muted)">2</td>
+                <td>mol_weight</td>
+                <td><span style="color:var(--text-muted);font-size:0.65rem">float64</span></td>
+                <td>
+                  <select class="col-selector">
+                    <option>Feature</option>
+                    <option selected>Ignore</option>
+                    <option>Target</option>
+                  </select>
+                </td>
+                <td><span style="font-family:var(--font-mono)">180.16</span></td>
+                <td style="color:var(--green)">0</td>
+              </tr>
+              <tr>
+                <td style="color:var(--text-muted)">3</td>
+                <td>name</td>
+                <td><span style="color:var(--text-muted);font-size:0.65rem">object</span></td>
+                <td>
+                  <select class="col-selector">
+                    <option>Feature</option>
+                    <option>Ignore</option>
+                    <option>Target</option>
+                  </select>
+                </td>
+                <td>aspirin</td>
+                <td style="color:var(--green)">0</td>
+              </tr>
+              <tr>
+                <td style="color:var(--text-muted)">4</td>
+                <td>source</td>
+                <td><span style="color:var(--text-muted);font-size:0.65rem">object</span></td>
+                <td>
+                  <select class="col-selector">
+                    <option>Feature</option>
+                    <option selected>Ignore</option>
+                    <option>Target</option>
+                  </select>
+                </td>
+                <td>PubChem</td>
+                <td style="color:var(--amber)">12</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-chip">
+          <div class="stat-chip-label">총 샘플</div>
+          <div class="stat-chip-value">1,247</div>
+          <div class="stat-chip-sub">분자</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-label">타겟 범위</div>
+          <div class="stat-chip-value">-45 ~ 344</div>
+          <div class="stat-chip-sub">°C</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-label">SMILES 유효</div>
+          <div class="stat-chip-value">99.1%</div>
+          <div class="stat-chip-sub">RDKit 검증</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-label">중앙값 BP</div>
+          <div class="stat-chip-value">162.4</div>
+          <div class="stat-chip-sub">°C</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(1)">← 이전</button>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" onclick="goStep(3)">논문 파싱 시작 →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 3: PAPER PARSING ── -->
+    <div class="step-view" id="view-3">
+      <div class="step-header">
+        <div class="step-tag">Step 03 — Paper Parsing</div>
+        <div class="step-title-h1">논문 파싱 결과</div>
+        <div class="step-desc">PDF를 Markdown으로 변환하고 섹션별로 구조화합니다. 주요 방법론 섹션에 집중합니다.</div>
+      </div>
+
+      <div class="processing-badge">
+        <span class="spin">⟳</span> GPT-4o vision으로 처리 중 — 섹션 3/8 완료
+      </div>
+
+      <div class="parse-section">
+        <div class="parse-section-title">Abstract</div>
+        <div class="markdown-preview">
+          <p>We present a machine learning framework for predicting <strong>boiling points</strong> of organic compounds using molecular descriptors derived from RDKit. Our dataset comprises 1,247 molecules from PubChem with experimentally validated boiling points ranging from −45 to 344 °C.</p>
+          <p>The model employs <strong>Random Forest Regression</strong> with 200 estimators, utilizing a combination of <strong>Morgan fingerprints</strong> (radius=2, nBits=2048), <strong>physicochemical descriptors</strong> (MolWt, TPSA, LogP), and <strong>topological features</strong> (NumHAcceptors, NumHDonors, NumRotatableBonds).</p>
+          <p>We achieve an MAE of <code>8.3 °C</code> and R² of <code>0.91</code> on the held-out test set (20% split), demonstrating competitive performance with DFT-based approaches at a fraction of the computational cost.</p>
+        </div>
+      </div>
+
+      <div class="parse-section">
+        <div class="parse-section-title">Methods — Feature Engineering</div>
+        <div class="markdown-preview">
+          <h3>2.1 Molecular Descriptor Computation</h3>
+          <p>All descriptors were computed using RDKit (version 2023.09). Molecules were first standardized using <code>Chem.MolFromSmiles()</code> with sanitization enabled.</p>
+          <h3>2.2 Fingerprint Generation</h3>
+          <p>Morgan circular fingerprints were generated with radius=2 and nBits=2048. Additional 2D descriptors including <strong>atom counts</strong>, <strong>bond types</strong>, <strong>ring counts</strong>, and <strong>hydrogen bond donors/acceptors</strong> were appended to form a 2068-dimensional feature vector.</p>
+          <h3>2.3 Data Splitting</h3>
+          <p>Scaffold-based splitting was used to ensure chemical diversity between train/test sets. 80/20 ratio. Random seed: 42.</p>
+        </div>
+      </div>
+
+      <div class="parse-section">
+        <div class="parse-section-title">Methods — Model Training</div>
+        <div class="markdown-preview">
+          <h3>3.1 Random Forest</h3>
+          <p><code>sklearn.ensemble.RandomForestRegressor</code> with <code>n_estimators=200</code>, <code>max_depth=None</code>, <code>min_samples_split=2</code>, <code>random_state=42</code>.</p>
+          <p>5-fold cross-validation was applied on the training set. No feature scaling was applied (tree-based method).</p>
+          <h3>3.2 Evaluation</h3>
+          <p>Metrics: MAE, RMSE, R². Primary metric: MAE in °C.</p>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="card">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--amber-dim);color:var(--amber)">⚠</div>
+          파싱 경고
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-secondary)">
+          <div style="margin-bottom:8px">• 테이블 3 (Appendix A)에서 일부 기호가 손실되었습니다. 원본 PDF를 확인하세요.</div>
+          <div>• Equation 2는 수식 렌더링이 불완전합니다. RAG 추출에서 수동 확인을 권장합니다.</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(2)">← 이전</button>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" onclick="goStep(4)">RAG 추출 →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 4: RAG EXTRACTION ── -->
+    <div class="step-view" id="view-4">
+      <div class="step-header">
+        <div class="step-tag">Step 04 — RAG Extraction</div>
+        <div class="step-title-h1">논문에서 추출한 정보</div>
+        <div class="step-desc">논문 전체를 벡터 검색으로 분석해 재현에 필요한 모든 정보를 추출했습니다. <strong style="color:var(--amber)">주황색 배지</strong>는 논문에 명시되지 않아 default 값으로 설정된 항목입니다.</div>
+      </div>
+
+      <!-- 범례 -->
+      <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px;font-size:0.7rem;color:var(--text-secondary)">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block"></span>
+          논문에서 추출된 값
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:0.7rem;color:var(--text-secondary)">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--amber);display:inline-block"></span>
+          논문 미명시 → Default 사용
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:0.7rem;color:var(--text-secondary)">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block"></span>
+          논문 미명시 → Not Found
+        </div>
+      </div>
+
+      <!-- TOP ROW: 모델 + 메트릭 -->
+      <div class="rag-grid" style="margin-bottom:14px">
+        <div class="rag-card" style="border-color:rgba(62,207,142,0.3)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div class="rag-card-label" style="margin-bottom:0">🧠 모델</div>
+            <span style="background:var(--green-dim);color:var(--green);border:1px solid rgba(62,207,142,0.3);border-radius:999px;padding:1px 8px;font-size:0.62rem;font-weight:600">논문 명시</span>
+          </div>
+          <div class="rag-value">RandomForestRegressor</div>
+          <div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;margin-bottom:10px">sklearn.ensemble</div>
+          <div style="font-size:0.68rem;color:var(--text-secondary);margin-bottom:8px">비교 모델: kNN, Decision Tree, Linear Regression, <strong style="color:var(--green)">Random Forest</strong> ← 최고 성능</div>
+          <div class="confidence-bar-wrap">
+            <div class="label"><span>추출 신뢰도</span><span class="evidence-score">98%</span></div>
+            <div class="confidence-bar"><div class="confidence-fill" style="width:98%"></div></div>
+          </div>
+        </div>
+
+        <div class="rag-card" style="border-color:rgba(62,207,142,0.3)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div class="rag-card-label" style="margin-bottom:0">🎯 논문 Metric (reported)</div>
+            <span style="background:var(--green-dim);color:var(--green);border:1px solid rgba(62,207,142,0.3);border-radius:999px;padding:1px 8px;font-size:0.62rem;font-weight:600">논문 명시</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+            <div style="background:var(--bg-base);border-radius:var(--radius-sm);padding:8px">
+              <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em">MAE</div>
+              <div style="font-family:var(--font-mono);font-size:1.05rem;font-weight:700;color:var(--green)">19.876</div>
+            </div>
+            <div style="background:var(--bg-base);border-radius:var(--radius-sm);padding:8px">
+              <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em">R²</div>
+              <div style="font-family:var(--font-mono);font-size:1.05rem;font-weight:700;color:var(--accent)">0.881</div>
+            </div>
+            <div style="background:var(--bg-base);border-radius:var(--radius-sm);padding:8px">
+              <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em">RMSE</div>
+              <div style="font-family:var(--font-mono);font-size:1.05rem;font-weight:700;color:var(--text-primary)">43.295</div>
+            </div>
+            <div style="background:var(--bg-base);border-radius:var(--radius-sm);padding:8px">
+              <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em">MSE</div>
+              <div style="font-family:var(--font-mono);font-size:1.05rem;font-weight:700;color:var(--text-primary)">1874.417</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECOND ROW: 하이퍼파라미터 + 데이터 분할 -->
+      <div class="rag-grid" style="margin-bottom:14px">
+        <div class="rag-card" style="border-color:rgba(245,166,35,0.3)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div class="rag-card-label" style="margin-bottom:0">⚙ 하이퍼파라미터</div>
+            <span style="background:var(--amber-dim);color:var(--amber);border:1px solid rgba(245,166,35,0.3);border-radius:999px;padding:1px 8px;font-size:0.62rem;font-weight:600">Default 적용</span>
+          </div>
+          <div style="font-family:var(--font-mono);font-size:0.72rem;line-height:2.1;color:var(--text-secondary)">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span><span style="color:var(--cyan)">n_estimators</span> = <span style="color:var(--amber)">100</span></span>
+              <span style="font-size:0.6rem;font-family:var(--font-sans);background:var(--amber-dim);color:var(--amber);padding:1px 6px;border-radius:999px">default</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span><span style="color:var(--cyan)">max_depth</span> = <span style="color:var(--amber)">None</span></span>
+              <span style="font-size:0.6rem;font-family:var(--font-sans);background:var(--amber-dim);color:var(--amber);padding:1px 6px;border-radius:999px">default</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span><span style="color:var(--cyan)">random_state</span> = <span style="color:var(--amber)">42</span></span>
+              <span style="font-size:0.6rem;font-family:var(--font-sans);background:var(--amber-dim);color:var(--amber);padding:1px 6px;border-radius:999px">default</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span><span style="color:var(--cyan)">min_samples_split</span> = <span style="color:var(--amber)">2</span></span>
+              <span style="font-size:0.6rem;font-family:var(--font-sans);background:var(--amber-dim);color:var(--amber);padding:1px 6px;border-radius:999px">default</span>
+            </div>
+          </div>
+          <div style="margin-top:8px;padding:6px 8px;background:var(--amber-dim);border-radius:var(--radius-sm);font-size:0.66rem;color:var(--amber);line-height:1.5">
+            ⚠ 논문에 하이퍼파라미터 설정이 명시되지 않아 sklearn 기본값을 사용합니다.
+          </div>
+        </div>
+
+        <div class="rag-card" style="border-color:rgba(224,92,106,0.3)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div class="rag-card-label" style="margin-bottom:0">📊 학습 설정</div>
+            <span style="background:var(--red-dim);color:var(--red);border:1px solid rgba(224,92,106,0.3);border-radius:999px;padding:1px 8px;font-size:0.62rem;font-weight:600">미명시</span>
+          </div>
+          <!-- 분할 전략 -->
+          <div style="margin-bottom:10px">
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:4px">분할 전략</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);font-family:var(--font-mono)">Not Found</span>
+              <span style="font-size:0.62rem;background:var(--amber-dim);color:var(--amber);padding:1px 6px;border-radius:999px">→ random split (default)</span>
+            </div>
+          </div>
+          <!-- test_size -->
+          <div style="margin-bottom:10px">
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:4px">test_size</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);font-family:var(--font-mono)">Not Found</span>
+              <span style="font-size:0.62rem;background:var(--amber-dim);color:var(--amber);padding:1px 6px;border-radius:999px">→ 0.2 (default)</span>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:6px">
+              <div style="flex:4;background:var(--accent-dim);border-radius:999px;height:5px"></div>
+              <div style="flex:1;background:var(--amber-dim);border-radius:999px;height:5px"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:0.6rem;color:var(--text-muted)">
+              <span>Train 80%</span><span>Test 20%</span>
+            </div>
+          </div>
+          <!-- CV -->
+          <div>
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:4px">Cross-validation</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);font-family:var(--font-mono)">Not Found</span>
+              <span style="font-size:0.62rem;background:var(--red-dim);color:var(--red);padding:1px 6px;border-radius:999px">미적용</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- THIRD ROW: 전처리 -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--green-dim);color:var(--green)">⚗</div>
+          데이터 전처리
+          <span style="margin-left:auto">
+            <span style="background:var(--green-dim);color:var(--green);border:1px solid rgba(62,207,142,0.3);border-radius:999px;padding:1px 8px;font-size:0.62rem;font-weight:600">논문 명시</span>
+          </span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+          <div style="background:var(--bg-raised);border-radius:var(--radius-sm);padding:10px;border:1px solid var(--border)">
+            <div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.07em">출처</div>
+            <div style="font-size:0.78rem;font-weight:600;color:var(--text-primary)">PubChem + CAS</div>
+            <div style="font-size:0.65rem;color:var(--text-secondary);margin-top:2px">PubChem 기본 데이터셋 + CAS boiling point 통합</div>
+          </div>
+          <div style="background:var(--bg-raised);border-radius:var(--radius-sm);padding:10px;border:1px solid var(--border)">
+            <div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.07em">클리닝</div>
+            <div style="font-size:0.78rem;font-weight:600;color:var(--text-primary)">불필요 항목 삭제</div>
+            <div style="font-size:0.65rem;color:var(--text-secondary);margin-top:2px">불필요 특성 및 화합물 제거</div>
+          </div>
+          <div style="background:var(--bg-raised);border-radius:var(--radius-sm);padding:10px;border:1px solid var(--border)">
+            <div style="font-size:0.62rem;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.07em">Scaling</div>
+            <div style="font-size:0.78rem;font-weight:600;color:var(--text-secondary);font-family:var(--font-mono)">NULL</div>
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">논문 미명시 — 미적용</div>
+          </div>
+        </div>
+        <!-- 엔지니어링 피처 (Excel) -->
+        <div style="margin-top:12px;padding:10px 12px;background:var(--green-dim);border:1px solid rgba(62,207,142,0.25);border-radius:var(--radius-sm)">
+          <div style="font-size:0.68rem;font-weight:600;color:var(--green);margin-bottom:6px">📐 Excel에서 직접 추가된 Engineered Features (논문 명시)</div>
+          <div style="font-size:0.72rem;color:var(--text-secondary);line-height:1.6">
+            <code style="background:var(--bg-base);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--cyan);font-family:var(--font-mono);font-size:0.68rem">LEN()</code> /
+            <code style="background:var(--bg-base);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--cyan);font-family:var(--font-mono);font-size:0.68rem">SUBSTITUTE()</code>
+            함수로 SMILES 문자열에서 원자 개수를 직접 계산
+          </div>
+          <div class="feature-chips" style="margin-top:8px">
+            <div class="feature-chip highlight"><span class="chip-dot"></span>C_count (탄소 수)</div>
+            <div class="feature-chip highlight"><span class="chip-dot"></span>N_count (질소 수)</div>
+            <div class="feature-chip highlight"><span class="chip-dot"></span>O_count (산소 수)</div>
+            <div class="feature-chip highlight"><span class="chip-dot"></span>side_chain (측쇄 수)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FOURTH ROW: Feature 요약 -->
+      <div class="card">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--purple-dim);color:var(--purple)">⬡</div>
+          화학 Feature 요약
+          <span style="margin-left:auto;font-size:0.7rem;font-weight:400;color:var(--text-muted)">총 12개 특성 (boiling point 제외)</span>
+        </div>
+
+        <!-- feature method 설명 -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:8px 12px;background:var(--bg-raised);border-radius:var(--radius-sm);border:1px solid var(--border)">
+          <span style="font-size:13px">📋</span>
+          <div style="font-size:0.72rem;color:var(--text-secondary)">
+            논문은 <strong style="color:var(--text-primary)">Descriptor 기반</strong> 방식을 사용합니다.
+            Fingerprint(Morgan 등)는 <strong style="color:var(--red)">사용하지 않음</strong>.
+            RDKit descriptor도 명시 없음 — <strong style="color:var(--amber)">SMILES 기반 수식 계산만 명시</strong>.
+          </div>
+        </div>
+
+        <!-- 논문 명시 features -->
+        <div class="parse-section-title" style="margin-bottom:10px">
+          <span style="color:var(--green)">✓</span> 논문 명시 Features
+        </div>
+        <div class="feature-chips" style="margin-bottom:6px">
+          <div class="feature-chip highlight"><span class="chip-dot"></span>MolecularWeight (mw)</div>
+          <div class="feature-chip highlight"><span class="chip-dot"></span>HeavyAtomCount (heavycnt)</div>
+          <div class="feature-chip highlight"><span class="chip-dot"></span>C_count</div>
+          <div class="feature-chip highlight"><span class="chip-dot"></span>N_count</div>
+          <div class="feature-chip highlight"><span class="chip-dot"></span>O_count</div>
+          <div class="feature-chip highlight"><span class="chip-dot"></span>side_chain</div>
+        </div>
+        <div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:14px;padding-left:4px">※ 나머지 6개 특성은 논문에서 전체 목록이 명시되지 않아 미확인 상태입니다.</div>
+
+        <!-- 미명시 → unresolved -->
+        <div class="parse-section-title" style="margin-bottom:10px">
+          <span style="color:var(--amber)">?</span> 미확인 Features (12개 중 나머지 6개)
+        </div>
+        <div style="padding:10px 12px;background:var(--amber-dim);border:1px solid rgba(245,166,35,0.25);border-radius:var(--radius-sm)">
+          <div style="font-size:0.7rem;color:var(--amber);font-weight:600;margin-bottom:6px">⚠ 논문에서 전체 12개 특성 목록이 명시되지 않았습니다</div>
+          <div style="font-size:0.68rem;color:var(--text-secondary);line-height:1.6">
+            논문은 unknown dataset이 "12 characteristics without boiling point"를 포함한다고만 언급하며, 나머지 6개 특성 이름은 명시되지 않았습니다.
+            코드 생성 단계에서 PubChem 기본 제공 컬럼(ExactMolWt, XLogP, TPSA 등)으로 추정하여 채웁니다.
+          </div>
+        </div>
+
+        <!-- NOT USED -->
+        <div class="parse-section-title" style="margin-top:16px;margin-bottom:10px">
+          <span style="color:var(--red)">✕</span> 논문에서 사용하지 않음
+        </div>
+        <div class="feature-chips">
+          <div class="feature-chip" style="opacity:0.5;text-decoration:line-through"><span class="chip-dot"></span>Morgan Fingerprint</div>
+          <div class="feature-chip" style="opacity:0.5;text-decoration:line-through"><span class="chip-dot"></span>MACCS Keys</div>
+          <div class="feature-chip" style="opacity:0.5;text-decoration:line-through"><span class="chip-dot"></span>ECFP</div>
+          <div class="feature-chip" style="opacity:0.5;text-decoration:line-through"><span class="chip-dot"></span>RDKit 2D Descriptors (TPSA, LogP 등)</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(3)">← 이전</button>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" onclick="goStep(5)">코드 생성 →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 5: CODE GENERATION ── -->
+    <div class="step-view" id="view-5">
+      <div class="step-header">
+        <div class="step-tag">Step 05 — Code Generation</div>
+        <div class="step-title-h1">생성된 재현 코드</div>
+        <div class="step-desc">추출된 정보를 바탕으로 LLM이 RDKit + sklearn 기반 Python 코드를 생성했습니다.</div>
+      </div>
+
+      <div class="code-panel">
+        <div class="code-panel-header">
+          <div class="code-dots">
+            <span class="dot-red"></span>
+            <span class="dot-amber"></span>
+            <span class="dot-green"></span>
+          </div>
+          <div class="code-file-name">repro_boiling_point.py</div>
+          <button class="code-copy-btn" onclick="copyCode()">⎘ Copy</button>
+        </div>
+        <div class="code-body">
+<pre id="code-content"><span class="cm"># ChemRepro — Auto-generated Reproduction Script</span>
+<span class="cm"># Source: "Machine Learning Prediction of Boiling Points" (2023)</span>
+<span class="cm"># Generated by ChemRepro v1.0</span>
+
+<span class="kw">import</span> pandas <span class="kw">as</span> pd
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> rdkit <span class="kw">import</span> <span class="cl">Chem</span>
+<span class="kw">from</span> rdkit.Chem <span class="kw">import</span> <span class="cl">Descriptors</span>, <span class="cl">rdMolDescriptors</span>, <span class="cl">AllChem</span>
+<span class="kw">from</span> sklearn.ensemble <span class="kw">import</span> <span class="cl">RandomForestRegressor</span>
+<span class="kw">from</span> sklearn.model_selection <span class="kw">import</span> cross_val_score
+<span class="kw">from</span> sklearn.metrics <span class="kw">import</span> mean_absolute_error, mean_squared_error, r2_score
+<span class="kw">import</span> warnings
+warnings.<span class="fn">filterwarnings</span>(<span class="st">'ignore'</span>)
+
+<span class="cm"># ── 1. Load Data ──────────────────────────────────────────</span>
+df = pd.<span class="fn">read_csv</span>(<span class="st">'molecules_boiling.csv'</span>)
+smiles_col = <span class="st">'smiles'</span>
+target_col  = <span class="st">'bp_celsius'</span>
+
+<span class="cm"># ── 2. Feature Extraction (RDKit) ─────────────────────────</span>
+<span class="kw">def</span> <span class="fn">compute_features</span>(smiles):
+    mol = Chem.<span class="fn">MolFromSmiles</span>(smiles)
+    <span class="kw">if</span> mol <span class="kw">is</span> <span class="kw">None</span>:
+        <span class="kw">return</span> <span class="kw">None</span>
+
+    <span class="cm"># Morgan Fingerprint (radius=2, nBits=2048)</span>
+    fp = AllChem.<span class="fn">GetMorganFingerprintAsBitVect</span>(mol, radius=<span class="nm">2</span>, nBits=<span class="nm">2048</span>)
+    fp_arr = np.<span class="fn">array</span>(fp)
+
+    <span class="cm"># Physicochemical Descriptors</span>
+    physchem = [
+        Descriptors.<span class="fn">MolWt</span>(mol),
+        Descriptors.<span class="fn">TPSA</span>(mol),
+        Descriptors.<span class="fn">MolLogP</span>(mol),
+        Descriptors.<span class="fn">MolMR</span>(mol),
+    ]
+
+    <span class="cm"># Topological Features</span>
+    topo = [
+        rdMolDescriptors.<span class="fn">CalcNumHBA</span>(mol),
+        rdMolDescriptors.<span class="fn">CalcNumHBD</span>(mol),
+        rdMolDescriptors.<span class="fn">CalcNumRotatableBonds</span>(mol),
+        rdMolDescriptors.<span class="fn">CalcNumRings</span>(mol),
+        rdMolDescriptors.<span class="fn">CalcNumAromaticRings</span>(mol),
+        rdMolDescriptors.<span class="fn">CalcNumAliphaticRings</span>(mol),
+        rdMolDescriptors.<span class="fn">CalcNumHeteroatoms</span>(mol),
+        mol.<span class="fn">GetNumHeavyAtoms</span>(),
+        Descriptors.<span class="fn">NumValenceElectrons</span>(mol),
+        rdMolDescriptors.<span class="fn">CalcFractionCSP3</span>(mol),
+    ]
+
+    <span class="kw">return</span> np.<span class="fn">concatenate</span>([fp_arr, physchem, topo])
+
+features = df[smiles_col].<span class="fn">apply</span>(compute_features)
+valid_mask = features.<span class="fn">notna</span>()
+X = np.<span class="fn">vstack</span>(features[valid_mask].<span class="fn">values</span>)
+y = df[target_col][valid_mask].<span class="fn">values</span>
+
+<span class="cm"># ── 3. Scaffold Split (80/20) ──────────────────────────────</span>
+<span class="kw">from</span> rdkit.Chem.Scaffolds <span class="kw">import</span> MurckoScaffold
+<span class="cm"># ... scaffold split logic ...</span>
+<span class="kw">from</span> sklearn.model_selection <span class="kw">import</span> train_test_split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=<span class="nm">0.2</span>, random_state=<span class="nm">42</span>
+)
+
+<span class="cm"># ── 4. Train Model ─────────────────────────────────────────</span>
+model = <span class="cl">RandomForestRegressor</span>(
+    n_estimators=<span class="nm">200</span>,
+    max_depth=<span class="kw">None</span>,
+    min_samples_split=<span class="nm">2</span>,
+    random_state=<span class="nm">42</span>,
+    n_jobs=-<span class="nm">1</span>
+)
+model.<span class="fn">fit</span>(X_train, y_train)
+
+<span class="cm"># ── 5. Evaluate ────────────────────────────────────────────</span>
+y_pred = model.<span class="fn">predict</span>(X_test)
+mae  = mean_absolute_error(y_test, y_pred)
+mse  = mean_squared_error(y_test, y_pred)
+rmse = np.<span class="fn">sqrt</span>(mse)
+r2   = r2_score(y_test, y_pred)
+
+<span class="fn">print</span>(<span class="st">f"MAE : {mae:.2f} °C  (paper: 8.30)"</span>)
+<span class="fn">print</span>(<span class="st">f"RMSE: {rmse:.2f} °C  (paper: 12.10)"</span>)
+<span class="fn">print</span>(<span class="st">f"R²  : {r2:.4f}      (paper: 0.9100)"</span>)</pre>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--amber-dim);color:var(--amber)">⚠</div>
+          코드 생성 Assumptions
+        </div>
+        <div class="assumption-item">
+          <span class="assumption-icon">⚠</span>
+          <span>Scaffold split 구현이 논문에서 완전히 명시되지 않아 <strong>random_state=42</strong>로 대체했습니다.</span>
+        </div>
+        <div class="assumption-item">
+          <span class="assumption-icon">ℹ</span>
+          <span>MACCS Keys는 논문 주요 실험에서 제외되어 있어 포함하지 않았습니다.</span>
+        </div>
+        <div class="assumption-item">
+          <span class="assumption-icon">⚠</span>
+          <span>BalabanJ, BertzCT descriptor는 논문에서 언급되지 않아 포함하지 않았습니다.</span>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(4)">← 이전</button>
+        <div class="spacer"></div>
+        <button class="btn btn-success" onclick="goStep(6)">▶ 코드 실행 →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 6: RESULTS ── -->
+    <div class="step-view" id="view-6">
+      <div class="step-header">
+        <div class="step-tag">Step 06 — Evaluation Report</div>
+        <div class="step-title-h1">실행 결과 및 비교 보고서</div>
+        <div class="step-desc">재현된 모델의 성능과 논문의 보고된 수치를 비교합니다.</div>
+      </div>
+
+      <div class="metric-grid">
+        <div class="metric-card good">
+          <div class="metric-name">MAE</div>
+          <div class="metric-value">8.71</div>
+          <div class="metric-compare">
+            <span>°C</span>
+            <span class="paper-val">vs 8.30</span>
+            <span class="delta-badge neg">+0.41</span>
+          </div>
+        </div>
+        <div class="metric-card ok">
+          <div class="metric-name">RMSE</div>
+          <div class="metric-value">13.2</div>
+          <div class="metric-compare">
+            <span>°C</span>
+            <span class="paper-val">vs 12.10</span>
+            <span class="delta-badge neg">+1.1</span>
+          </div>
+        </div>
+        <div class="metric-card ok">
+          <div class="metric-name">MSE</div>
+          <div class="metric-value">174.2</div>
+          <div class="metric-compare">
+            <span></span>
+            <span class="paper-val">vs 146.4</span>
+            <span class="delta-badge neg">+27.8</span>
+          </div>
+        </div>
+        <div class="metric-card good">
+          <div class="metric-name">R²</div>
+          <div class="metric-value">0.894</div>
+          <div class="metric-compare">
+            <span></span>
+            <span class="paper-val">vs 0.910</span>
+            <span class="delta-badge neg">−0.016</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Predicted vs Actual Boiling Point (Test Set, n=250)</div>
+        <svg class="scatter-svg" viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+          <!-- Axes -->
+          <line x1="50" y1="10" x2="50" y2="170" class="axis-line"/>
+          <line x1="50" y1="170" x2="590" y2="170" class="axis-line"/>
+          <!-- Diagonal reference -->
+          <line x1="50" y1="10" x2="590" y2="170" class="diagonal-line"/>
+          <!-- Axis labels -->
+          <text x="310" y="192" text-anchor="middle" class="axis-label">Actual BP (°C)</text>
+          <text x="14" y="90" text-anchor="middle" class="axis-label" transform="rotate(-90,14,90)">Predicted BP (°C)</text>
+          <!-- Scatter dots (synthetic) -->
+          <circle cx="80"  cy="150" r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="95"  cy="145" r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="110" cy="138" r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="130" cy="130" r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="155" cy="120" r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="175" cy="115" r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="200" cy="108" r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="220" cy="100" r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="250" cy="90"  r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="270" cy="85"  r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="300" cy="78"  r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="330" cy="68"  r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="360" cy="60"  r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="390" cy="50"  r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="420" cy="42"  r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="450" cy="35"  r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="480" cy="28"  r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="510" cy="22"  r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="540" cy="17"  r="3" class="scatter-dot" opacity="0.6"/>
+          <circle cx="570" cy="12"  r="3" class="scatter-dot" opacity="0.6"/>
+          <!-- Outliers -->
+          <circle cx="160" cy="100" r="3" fill="var(--amber)" opacity="0.7"/>
+          <circle cx="320" cy="55"  r="3" fill="var(--amber)" opacity="0.7"/>
+          <circle cx="440" cy="20"  r="3" fill="var(--red)"   opacity="0.7"/>
+          <circle cx="195" cy="145" r="3" fill="var(--amber)" opacity="0.7"/>
+          <circle cx="490" cy="60"  r="3" fill="var(--red)"   opacity="0.6"/>
+          <!-- Legend -->
+          <circle cx="470" cy="170" r="4" fill="var(--accent)" opacity="0.7"/>
+          <text x="478" y="174" class="axis-label">Predicted</text>
+          <circle cx="520" cy="170" r="4" fill="var(--amber)" opacity="0.7"/>
+          <text x="528" y="174" class="axis-label">Outlier</text>
+        </svg>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--green-dim);color:var(--green)">≡</div>
+          논문 vs 재현 비교 테이블
+        </div>
+        <div class="table-container">
+          <table class="compare-table">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>논문 보고값</th>
+                <th>재현 결과</th>
+                <th>Δ 차이</th>
+                <th>판정</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>MAE (°C)</td>
+                <td class="compare-paper">8.30</td>
+                <td class="compare-ours">8.71</td>
+                <td style="color:var(--amber);font-family:var(--font-mono)">+0.41 (+4.9%)</td>
+                <td><span class="delta-badge pos">✓ PASS</span></td>
+              </tr>
+              <tr>
+                <td>RMSE (°C)</td>
+                <td class="compare-paper">12.10</td>
+                <td class="compare-ours">13.20</td>
+                <td style="color:var(--amber);font-family:var(--font-mono)">+1.10 (+9.1%)</td>
+                <td><span class="delta-badge pos">✓ PASS</span></td>
+              </tr>
+              <tr>
+                <td>MSE</td>
+                <td class="compare-paper">146.4</td>
+                <td class="compare-ours">174.2</td>
+                <td style="color:var(--red);font-family:var(--font-mono)">+27.8 (+19%)</td>
+                <td><span class="delta-badge neg">⚠ WARN</span></td>
+              </tr>
+              <tr>
+                <td>R²</td>
+                <td class="compare-paper">0.9100</td>
+                <td class="compare-ours">0.8940</td>
+                <td style="color:var(--amber);font-family:var(--font-mono)">−0.016 (−1.8%)</td>
+                <td><span class="delta-badge pos">✓ PASS</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="report-section">
+        <div class="parse-section-title" style="margin-bottom:10px">재현 분석 요약</div>
+        <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.75">
+          <p style="margin-bottom:8px">전반적으로 <strong style="color:var(--green)">성공적인 재현</strong>으로 평가됩니다. MAE 차이는 <strong>+4.9%</strong>로 허용 범위 내에 있습니다. MSE의 경우 +19% 편차가 발생했는데, 이는 scaffold split 구현 방식의 차이에 기인할 가능성이 높습니다.</p>
+          <p style="margin-bottom:8px">논문이 scikit-learn의 정확한 scaffold split 구현을 명시하지 않아 random split으로 대체했습니다. 이 차이가 MSE에서 더 두드러진 이유는 극단값(outlier) 분포의 차이 때문으로 추정됩니다.</p>
+          <p>Feature 조합 (Morgan FP 2048 + 10개 physicochemical/topological descriptor)의 재현은 완전히 일치합니다.</p>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goStep(5)">← 이전</button>
+        <div class="spacer"></div>
+        <button class="btn btn-secondary">📥 보고서 다운로드</button>
+        <button class="btn btn-primary">↗ 새 세션 시작</button>
+      </div>
+    </div>
+
+  </div><!-- /main-inner -->
+</main>
+
+<!-- ===== RIGHT PANEL ===== -->
+<aside id="panel">
+  <div class="panel-tabs">
+    <div class="panel-tab active" onclick="switchTab('status', this)">상태</div>
+    <div class="panel-tab" onclick="switchTab('evidence', this)">근거</div>
+    <div class="panel-tab" onclick="switchTab('assumptions', this)">가정</div>
+  </div>
+
+  <div class="panel-body">
+
+    <!-- STATUS TAB -->
+    <div class="panel-content active" id="tab-status">
+      <div class="panel-section">
+        <div class="panel-section-title">처리 상태</div>
+        <div class="status-item">
+          <div class="status-dot ok"></div>
+          <div class="status-text"><strong>PDF 업로드</strong><br>paper.pdf (2.3 MB) — 완료</div>
+        </div>
+        <div class="status-item">
+          <div class="status-dot ok"></div>
+          <div class="status-text"><strong>데이터 업로드</strong><br>molecules.csv (1,247 rows) — 완료</div>
+        </div>
+        <div class="status-item">
+          <div class="status-dot ok"></div>
+          <div class="status-text"><strong>컬럼 인식</strong><br>SMILES + Target 자동 감지</div>
+        </div>
+        <div class="status-item">
+          <div class="status-dot info"></div>
+          <div class="status-text"><strong>논문 파싱</strong><br>섹션 3/8 처리 중...</div>
+        </div>
+        <div class="status-item">
+          <div class="status-dot idle"></div>
+          <div class="status-text"><strong>RAG 추출</strong><br>대기 중</div>
+        </div>
+        <div class="status-item">
+          <div class="status-dot idle"></div>
+          <div class="status-text"><strong>코드 생성</strong><br>대기 중</div>
+        </div>
+        <div class="status-item">
+          <div class="status-dot idle"></div>
+          <div class="status-text"><strong>실행 · 평가</strong><br>대기 중</div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">데이터 요약</div>
+        <div class="status-item">
+          <div class="status-dot ok"></div>
+          <div class="status-text"><strong>유효 SMILES</strong> — 1,235 / 1,247 (99.1%)</div>
+        </div>
+        <div class="status-item">
+          <div class="status-dot warn"></div>
+          <div class="status-text"><strong>Target 이상값</strong> — 14개 (±3σ 초과)</div>
+        </div>
+        <div class="status-item">
+          <div class="status-dot ok"></div>
+          <div class="status-text"><strong>중복 제거</strong> — 0개 중복 발견</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EVIDENCE TAB -->
+    <div class="panel-content" id="tab-evidence">
+      <div class="panel-section">
+        <div class="panel-section-title">RAG 근거 문장 (chunk-id)</div>
+
+        <div class="evidence-item">
+          <div class="evidence-quote">"Random Forest model had the highest performance based on the Mean Squared Error (MSE, 1874.417)... selected optimal model, Random Forest"</div>
+          <div class="evidence-meta">
+            <span>chunk-15 · 모델 선택</span>
+            <span class="evidence-score">0.98</span>
+          </div>
+        </div>
+
+        <div class="evidence-item">
+          <div class="evidence-quote">"Since test data were well predicted, Random Forest model was used to predict boiling point of unknown dataset."</div>
+          <div class="evidence-meta">
+            <span>chunk-15, 16 · 모델 적용</span>
+            <span class="evidence-score">0.96</span>
+          </div>
+        </div>
+
+        <div class="evidence-item">
+          <div class="evidence-quote">"The unknown dataset has 12 characteristics without boiling point."</div>
+          <div class="evidence-meta">
+            <span>chunk-16 · Feature 수</span>
+            <span class="evidence-score">0.94</span>
+          </div>
+        </div>
+
+        <div class="evidence-item">
+          <div class="evidence-quote">"the bp tendency of mw and heavycnt is shown… the boiling point generally increases as the molecular weight increases… when the number of non-hydrogen atoms is the same."</div>
+          <div class="evidence-meta">
+            <span>chunk-13 · 주요 Feature</span>
+            <span class="evidence-score">0.91</span>
+          </div>
+        </div>
+
+        <div class="evidence-item">
+          <div class="evidence-quote">"Add new characteristics such as numbers of C, N, O, and Side chain using the LEN and SUBSTITUTE functions in Excel..."</div>
+          <div class="evidence-meta">
+            <span>chunk-7 · 전처리</span>
+            <span class="evidence-score">0.95</span>
+          </div>
+        </div>
+
+        <div class="evidence-item">
+          <div class="evidence-quote">"Delete unnecessary characteristics and compounds from the PubChem dataset. Integrate boiling points from CAS to the preprocessed PubChem dataset."</div>
+          <div class="evidence-meta">
+            <span>chunk-7 · 데이터 출처</span>
+            <span class="evidence-score">0.93</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">미발견 정보</div>
+        <div style="font-size:0.7rem;color:var(--text-muted);line-height:1.7">
+          <div style="display:flex;gap:6px;margin-bottom:4px"><span style="color:var(--red)">✕</span> 하이퍼파라미터 (n_estimators 등)</div>
+          <div style="display:flex;gap:6px;margin-bottom:4px"><span style="color:var(--red)">✕</span> train/test split 전략 및 비율</div>
+          <div style="display:flex;gap:6px;margin-bottom:4px"><span style="color:var(--red)">✕</span> Cross-validation 적용 여부</div>
+          <div style="display:flex;gap:6px;margin-bottom:4px"><span style="color:var(--red)">✕</span> 12개 feature 전체 목록</div>
+          <div style="display:flex;gap:6px"><span style="color:var(--red)">✕</span> Feature scaling 여부</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ASSUMPTIONS TAB -->
+    <div class="panel-content" id="tab-assumptions">
+      <div class="panel-section">
+        <div class="panel-section-title">코드 생성 가정 (Default)</div>
+
+        <div class="assumption-item" style="border-color:rgba(245,166,35,0.3)">
+          <span class="assumption-icon" style="color:var(--amber)">⚠</span>
+          <div>
+            <div style="font-size:0.71rem;color:var(--text-secondary)"><strong style="color:var(--text-primary)">n_estimators = 100</strong></div>
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">논문 미명시 → sklearn default 사용</div>
+          </div>
+        </div>
+
+        <div class="assumption-item" style="border-color:rgba(245,166,35,0.3)">
+          <span class="assumption-icon" style="color:var(--amber)">⚠</span>
+          <div>
+            <div style="font-size:0.71rem;color:var(--text-secondary)"><strong style="color:var(--text-primary)">test_size = 0.2, random split</strong></div>
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">논문 미명시 → 80/20 random split 가정</div>
+          </div>
+        </div>
+
+        <div class="assumption-item" style="border-color:rgba(245,166,35,0.3)">
+          <span class="assumption-icon" style="color:var(--amber)">⚠</span>
+          <div>
+            <div style="font-size:0.71rem;color:var(--text-secondary)"><strong style="color:var(--text-primary)">random_state = 42</strong></div>
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">재현성을 위해 임의 고정값 사용</div>
+          </div>
+        </div>
+
+        <div class="assumption-item" style="border-color:rgba(245,166,35,0.3)">
+          <span class="assumption-icon" style="color:var(--amber)">⚠</span>
+          <div>
+            <div style="font-size:0.71rem;color:var(--text-secondary)"><strong style="color:var(--text-primary)">미확인 6개 Feature 추정</strong></div>
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">PubChem 기본 컬럼(XLogP, TPSA, RotatableBondCount 등)으로 대체 추정</div>
+          </div>
+        </div>
+
+        <div class="assumption-item" style="border-color:rgba(79,142,247,0.3)">
+          <span class="assumption-icon" style="color:var(--accent)">ℹ</span>
+          <div>
+            <div style="font-size:0.71rem;color:var(--text-secondary)"><strong style="color:var(--text-primary)">Feature Scaling 미적용</strong></div>
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">Random Forest는 스케일 불변, 논문에서도 미명시</div>
+          </div>
+        </div>
+
+        <div class="assumption-item" style="border-color:rgba(224,92,106,0.3)">
+          <span class="assumption-icon" style="color:var(--red)">✕</span>
+          <div>
+            <div style="font-size:0.71rem;color:var(--text-secondary)"><strong style="color:var(--text-primary)">Fingerprint 미사용</strong></div>
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">논문이 descriptor 방식만 사용, Morgan FP 등 제외</div>
+          </div>
+        </div>
+
+        <div class="assumption-item" style="border-color:rgba(224,92,106,0.3)">
+          <span class="assumption-icon" style="color:var(--red)">✕</span>
+          <div>
+            <div style="font-size:0.71rem;color:var(--text-secondary)"><strong style="color:var(--text-primary)">Cross-validation 미적용</strong></div>
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">논문에서 CV 사용 여부를 명시하지 않음</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</aside>
+
+</div><!-- /app -->
+
+<!-- Mobile Bottom Nav -->
+<nav class="mobile-nav">
+  <button class="mobile-step-btn" onclick="goStep(1)">
+    <span class="mb-icon">📄</span>업로드
+  </button>
+  <button class="mobile-step-btn" onclick="goStep(2)">
+    <span class="mb-icon">📊</span>데이터
+  </button>
+  <button class="mobile-step-btn" onclick="goStep(3)">
+    <span class="mb-icon">📖</span>파싱
+  </button>
+  <button class="mobile-step-btn" onclick="goStep(4)">
+    <span class="mb-icon">🔍</span>RAG
+  </button>
+  <button class="mobile-step-btn" onclick="goStep(5)">
+    <span class="mb-icon">⌨</span>코드
+  </button>
+  <button class="mobile-step-btn active" onclick="goStep(6)">
+    <span class="mb-icon">📈</span>결과
+  </button>
+</nav>
+
+<script>
+/* =============================================
+   STATE
+============================================= */
+let currentStep = 2;
+const TOTAL_STEPS = 6;
+
+const STEP_LABELS = [
+  '', 'Upload Files', 'Data Inspection',
+  'Paper Parsing', 'RAG Extraction',
+  'Code Generation', 'Evaluation Report'
+];
+
+/* =============================================
+   NAVIGATION
+============================================= */
+function goStep(n) {
+  // Hide all views
+  document.querySelectorAll('.step-view').forEach(v => v.classList.remove('active'));
+  // Show target view
+  const view = document.getElementById('view-' + n);
+  if (view) view.classList.add('active');
+
+  // Update nav items
+  document.querySelectorAll('.step-item').forEach(item => {
+    const s = parseInt(item.dataset.step);
+    item.classList.remove('active', 'done');
+    if (s < n) {
+      item.classList.add('done');
+      item.querySelector('.step-num').textContent = '✓';
+    } else if (s === n) {
+      item.classList.add('active');
+      item.querySelector('.step-num').textContent = s;
+    } else {
+      item.querySelector('.step-num').textContent = s;
+    }
+  });
+
+  // Update connectors
+  document.querySelectorAll('.step-connector').forEach((conn, i) => {
+    conn.classList.toggle('done-line', i < n - 1);
+  });
+
+  // Update progress
+  const pct = Math.round(((n - 1) / (TOTAL_STEPS - 1)) * 100);
+  document.getElementById('nav-progress').style.width = pct + '%';
+  document.getElementById('progress-steps').textContent = 'Step ' + n + ' of ' + TOTAL_STEPS;
+  document.getElementById('progress-pct').textContent = pct + '%';
+
+  // Update breadcrumb
+  document.getElementById('breadcrumb-label').textContent = STEP_LABELS[n];
+
+  // Update mobile nav
+  document.querySelectorAll('.mobile-step-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i + 1 === n);
+  });
+
+  currentStep = n;
+
+  // Scroll to top of main
+  document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* =============================================
+   PANEL TABS
+============================================= */
+function switchTab(name, el) {
+  document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel-content').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+/* =============================================
+   FILE UPLOAD
+============================================= */
+function handleFileUpload(type, input) {
+  if (!input.files.length) return;
+  const file = input.files[0];
+  const zone = document.getElementById(type + '-zone');
+  const nameEl = document.getElementById(type + '-name');
+  zone.classList.add('filled');
+  nameEl.textContent = file.name;
+}
+
+// Drag and drop for upload zones
+document.querySelectorAll('.upload-zone').forEach(zone => {
+  zone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    zone.style.borderColor = 'var(--accent)';
+  });
+  zone.addEventListener('dragleave', () => {
+    if (!zone.classList.contains('filled'))
+      zone.style.borderColor = '';
+  });
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.style.borderColor = '';
+  });
+});
+
+/* =============================================
+   COPY CODE
+============================================= */
+function copyCode() {
+  const code = document.getElementById('code-content').innerText;
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.querySelector('.code-copy-btn');
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    btn.style.color = 'var(--green)';
+    btn.style.borderColor = 'var(--green)';
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.style.color = '';
+      btn.style.borderColor = '';
+    }, 2000);
+  });
+}
+
+/* =============================================
+   INIT
+============================================= */
+goStep(2);
+</script>
+
+</body>
+</html>

@@ -26,7 +26,9 @@ class CodeGenerationState(TypedDict, total=False):
     normalized_spec: dict[str, Any]
     assumptions: list[str]
     code_spec: dict[str, Any]
+    feature_resolution: dict[str, Any]
     generated_code: str
+    review_result: dict[str, Any]
     validation_result: dict[str, Any]
     validation_feedback: str
     retry_count: int

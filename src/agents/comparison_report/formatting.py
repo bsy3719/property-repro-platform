@@ -21,7 +21,23 @@ def build_comparison_table(paper_spec: dict[str, Any], execution_spec: dict[str,
     return markdown_table(rows)
 
 
-def compose_report(execution_spec: dict[str, Any], comparison_table: str, analysis_markdown: str, execution_final_output: dict[str, Any], generated_code_path: str) -> str:
+def compose_report(
+    execution_spec: dict[str, Any],
+    comparison_table: str,
+    analysis_markdown: str,
+    summary_headline: str,
+    summary_paragraphs: list[str],
+    execution_final_output: dict[str, Any],
+    generated_code_path: str,
+) -> str:
+    summary_lines = ""
+    if summary_headline or summary_paragraphs:
+        summary_lines = "## 재현 분석 요약\n"
+        if summary_headline:
+            summary_lines += f"{summary_headline}\n"
+        if summary_paragraphs:
+            summary_lines += "\n".join([f"- {paragraph}" for paragraph in summary_paragraphs if str(paragraph).strip()]) + "\n\n"
+
     return (
         "# 논문 대비 재현 결과 비교 보고서\n\n"
         "## 실행 요약\n"
@@ -30,6 +46,7 @@ def compose_report(execution_spec: dict[str, Any], comparison_table: str, analys
         f"- 반복 횟수: {execution_final_output.get('iteration', 'unknown')} / {execution_final_output.get('max_iterations', 'unknown')}\n"
         f"- 중단 사유: {execution_final_output.get('stop_reason', '') or '없음'}\n"
         f"- 생성 코드 경로: {generated_code_path or 'Not available'}\n\n"
+        f"{summary_lines}"
         "## 비교 표\n\n"
         f"{comparison_table}\n\n"
         f"{analysis_markdown}\n"

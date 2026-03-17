@@ -15,6 +15,8 @@ env/
 Thumbs.db
 .vscode/
 .idea/
+.claude/
+CLAUDE.md
 
 # Secrets / env
 .env
@@ -31,6 +33,9 @@ streamlit.err.log
 .coverage
 coverage.xml
 htmlcov/
+.mypy_cache/
+.ruff_cache/
+.cache/
 
 # Build artifacts
 build/
@@ -47,3 +52,7 @@ data/raw/
 data/interim/
 data/processed/
 
+# Local databases / temp outputs
+*.sqlite
+*.db
+*.tmp

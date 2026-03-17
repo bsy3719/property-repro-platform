@@ -5,6 +5,16 @@ import json
 import re
 from typing import Any
 
+from .chemistry_features import (
+    augment_feature_payload,
+    merge_unique,
+    normalize_count_feature_names,
+    normalize_descriptor_names,
+    normalize_exact_feature_terms,
+    normalize_fingerprint_family,
+    normalize_string_list,
+)
+
 MODEL_ALIASES = {
     "random forest": "RandomForestRegressor",
     "randomforest": "RandomForestRegressor",
@@ -132,8 +142,10 @@ def normalize_feature_method(value: Any) -> str:
     text = _text(value, default="").lower()
     if not text:
         return "Not found"
-    has_morgan = "morgan" in text or "fingerprint" in text
-    has_descriptor = "descriptor" in text or "rdkit" in text
+    has_morgan = normalize_fingerprint_family(text) is not None
+    has_descriptor = bool(normalize_descriptor_names(text) or normalize_count_feature_names(text))
+    if not has_descriptor:
+        has_descriptor = any(term in text for term in ["descriptor", "descriptors", "rdkit", "physicochemical", "atom count", "bond count", "ring count"])
     if has_morgan and has_descriptor:
         return "combined"
     if has_morgan:
@@ -218,13 +230,22 @@ def normalize_paper_method_spec(raw_spec: dict[str, Any] | None) -> dict[str, An
         "scaling": _bool_or_none(preprocessing_payload.get("scaling")),
     }
 
-    feature_payload = spec.get("feature", {}) if isinstance(spec.get("feature"), dict) else {}
+    feature_payload = augment_feature_payload(spec.get("feature", {}) if isinstance(spec.get("feature"), dict) else {})
     feature = {
         **_normalize_section_base(feature_payload),
         "method": normalize_feature_method(feature_payload.get("method")),
         "radius": _number(feature_payload.get("radius")),
         "n_bits": _number(feature_payload.get("n_bits")),
         "use_rdkit_descriptors": _bool_or_none(feature_payload.get("use_rdkit_descriptors")),
+        "descriptor_names": normalize_descriptor_names(feature_payload.get("descriptor_names")),
+        "count_feature_names": normalize_count_feature_names(feature_payload.get("count_feature_names")),
+        "fingerprint_family": normalize_fingerprint_family(feature_payload.get("fingerprint_family")),
+        "retained_input_features": normalize_exact_feature_terms(feature_payload.get("retained_input_features")),
+        "derived_feature_names": normalize_exact_feature_terms(feature_payload.get("derived_feature_names")),
+        "class_label_names": normalize_exact_feature_terms(feature_payload.get("class_label_names")),
+        "dataset_feature_count": _number(feature_payload.get("dataset_feature_count")),
+        "feature_terms": normalize_string_list(feature_payload.get("feature_terms")),
+        "unresolved_feature_terms": normalize_string_list(feature_payload.get("unresolved_feature_terms")),
     }
 
     model_payload = spec.get("model", {}) if isinstance(spec.get("model"), dict) else {}
@@ -270,6 +291,20 @@ def has_meaningful_paper_method_spec(spec: dict[str, Any] | None) -> bool:
         return True
     if normalized["feature"].get("method") not in {None, "", "Not found"}:
         return True
+    if normalized["feature"].get("descriptor_names"):
+        return True
+    if normalized["feature"].get("count_feature_names"):
+        return True
+    if normalized["feature"].get("retained_input_features"):
+        return True
+    if normalized["feature"].get("derived_feature_names"):
+        return True
+    if normalized["feature"].get("class_label_names"):
+        return True
+    if normalized["feature"].get("dataset_feature_count") is not None:
+        return True
+    if normalized["feature"].get("fingerprint_family"):
+        return True
     if normalized["hyperparameters"].get("values"):
         return True
     if normalized["training"].get("split_strategy") not in {None, "", "Not found"}:
@@ -292,20 +327,63 @@ def _preprocessing_label(section: dict[str, Any]) -> str:
 
 def format_feature_label(section: dict[str, Any]) -> str:
     method = normalize_feature_method(section.get("method"))
+    fingerprint_family = normalize_fingerprint_family(section.get("fingerprint_family"))
+    descriptor_names = normalize_descriptor_names(section.get("descriptor_names"))
+    count_feature_names = normalize_count_feature_names(section.get("count_feature_names"))
+    retained_input_features = normalize_exact_feature_terms(section.get("retained_input_features"))
+    derived_feature_names = normalize_exact_feature_terms(section.get("derived_feature_names"))
+    class_label_names = normalize_exact_feature_terms(section.get("class_label_names"))
+    dataset_feature_count = section.get("dataset_feature_count")
     radius = section.get("radius")
     n_bits = section.get("n_bits")
+    has_tabular_features = bool(retained_input_features or derived_feature_names or class_label_names)
     extras = []
+    if fingerprint_family:
+        extras.append(f"family={fingerprint_family}")
     if radius is not None:
         extras.append(f"radius={radius}")
     if n_bits is not None:
         extras.append(f"n_bits={n_bits}")
+    if dataset_feature_count is not None:
+        extras.append(f"feature_count={dataset_feature_count}")
     suffix = f" ({', '.join(extras)})" if extras else ""
+    detail_parts = []
+    if retained_input_features:
+        preview = ", ".join(retained_input_features[:6])
+        detail_parts.append(f"retained=[{preview}{', ...' if len(retained_input_features) > 6 else ''}]")
+    if derived_feature_names:
+        preview = ", ".join(derived_feature_names[:6])
+        detail_parts.append(f"derived=[{preview}{', ...' if len(derived_feature_names) > 6 else ''}]")
+    if class_label_names:
+        preview = ", ".join(class_label_names[:6])
+        detail_parts.append(f"class_labels=[{preview}{', ...' if len(class_label_names) > 6 else ''}]")
+    if descriptor_names:
+        preview = ", ".join(descriptor_names[:6])
+        detail_parts.append(f"descriptors=[{preview}{', ...' if len(descriptor_names) > 6 else ''}]")
+    if count_feature_names:
+        preview = ", ".join(count_feature_names[:6])
+        detail_parts.append(f"counts=[{preview}{', ...' if len(count_feature_names) > 6 else ''}]")
+    if section.get("unresolved_feature_terms"):
+        preview = ", ".join(normalize_string_list(section.get("unresolved_feature_terms"))[:4])
+        detail_parts.append(f"unresolved=[{preview}{', ...' if len(normalize_string_list(section.get('unresolved_feature_terms'))) > 4 else ''}]")
+    detail_suffix = f" {{{'; '.join(detail_parts)}}}" if detail_parts else ""
+    if method == "descriptor" and has_tabular_features and not descriptor_names and not count_feature_names:
+        return f"tabular chemistry features{suffix}{detail_suffix}"
     if method == "descriptor":
-        return "RDKit descriptors"
+        label = "RDKit descriptors"
+        if has_tabular_features:
+            label = "tabular/RDKit chemistry features"
+        return f"{label}{suffix}{detail_suffix}"
     if method == "morgan":
-        return f"Morgan fingerprint{suffix}"
+        family_label = fingerprint_family or "morgan"
+        return f"{family_label} fingerprint{suffix}{detail_suffix}"
     if method == "combined":
-        return f"Morgan fingerprint + RDKit descriptors{suffix}"
+        family_label = fingerprint_family or "morgan"
+        if has_tabular_features and not descriptor_names and not count_feature_names:
+            return f"{family_label} fingerprint + tabular chemistry features{suffix}{detail_suffix}"
+        if has_tabular_features:
+            return f"{family_label} fingerprint + chemistry features{suffix}{detail_suffix}"
+        return f"{family_label} fingerprint + RDKit descriptors{suffix}{detail_suffix}"
     return _first_available(section.get("key_values"), section.get("summary"))
 
 
@@ -338,6 +416,23 @@ def build_paper_method_summary_markdown(spec: dict[str, Any]) -> str:
     normalized = normalize_paper_method_spec(spec)
     rows = [
         ["Topic", "What Paper Did", "Key Values or Settings", "Evidence Chunks", "Evidence Snippets"],
+        [
+            "selection_basis",
+            normalized["selection_basis"]["summary"],
+            _first_available(
+                normalized["selection_basis"].get("key_values"),
+                normalized["selection_basis"].get("summary"),
+            ),
+            ", ".join(normalized["selection_basis"].get("evidence_chunks", [])) or "Not found",
+            normalized["selection_basis"].get("evidence_snippet", "Not found"),
+        ],
+        [
+            "preprocessing",
+            normalized["preprocessing"]["summary"],
+            _preprocessing_label(normalized["preprocessing"]),
+            ", ".join(normalized["preprocessing"].get("evidence_chunks", [])) or "Not found",
+            normalized["preprocessing"].get("evidence_snippet", "Not found"),
+        ],
         [
             "model",
             normalized["model"]["summary"],
@@ -399,4 +494,3 @@ def paper_method_spec_to_comparison_spec(spec: dict[str, Any]) -> dict[str, Any]
         "training": _training_label(normalized["training"]),
         "metrics": normalized["metrics"].get("reported", {}),
     }
-

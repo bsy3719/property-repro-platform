@@ -1,0 +1,242 @@
+"""
+Canonical RDKit descriptor reference data for code generation.
+"""
+
+from __future__ import annotations
+
+RDKIT_DESCRIPTOR_LIST: dict[str, list[str]] = {
+    "분자량/크기": [
+        "MolWt",
+        "ExactMolWt",
+        "HeavyAtomMolWt",
+        "HeavyAtomCount",
+        "NumValenceElectrons",
+        "NumRadicalElectrons",
+    ],
+    "위상/연결성": [
+        "BalabanJ",
+        "BertzCT",
+        "Ipc",
+        "AvgIpc",
+        "Chi0",
+        "Chi0n",
+        "Chi0v",
+        "Chi1",
+        "Chi1n",
+        "Chi1v",
+        "Chi2n",
+        "Chi2v",
+        "Chi3n",
+        "Chi3v",
+        "Chi4n",
+        "Chi4v",
+        "Kappa1",
+        "Kappa2",
+        "Kappa3",
+        "HallKierAlpha",
+        "Phi",
+        "FpDensityMorgan1",
+        "FpDensityMorgan2",
+        "FpDensityMorgan3",
+        "MaxEStateIndex",
+        "MinEStateIndex",
+        "MaxAbsEStateIndex",
+        "MinAbsEStateIndex",
+    ],
+    "전하/극성": [
+        "MaxPartialCharge",
+        "MinPartialCharge",
+        "MaxAbsPartialCharge",
+        "MinAbsPartialCharge",
+        "TPSA",
+        "MolLogP",
+        "MolMR",
+        "LabuteASA",
+        "PEOE_VSA1",
+        "PEOE_VSA2",
+        "PEOE_VSA3",
+        "PEOE_VSA4",
+        "PEOE_VSA5",
+        "PEOE_VSA6",
+        "PEOE_VSA7",
+        "PEOE_VSA8",
+        "PEOE_VSA9",
+        "PEOE_VSA10",
+        "PEOE_VSA11",
+        "PEOE_VSA12",
+        "PEOE_VSA13",
+        "PEOE_VSA14",
+        "SMR_VSA1",
+        "SMR_VSA2",
+        "SMR_VSA3",
+        "SMR_VSA4",
+        "SMR_VSA5",
+        "SMR_VSA6",
+        "SMR_VSA7",
+        "SMR_VSA8",
+        "SMR_VSA9",
+        "SMR_VSA10",
+        "SlogP_VSA1",
+        "SlogP_VSA2",
+        "SlogP_VSA3",
+        "SlogP_VSA4",
+        "SlogP_VSA5",
+        "SlogP_VSA6",
+        "SlogP_VSA7",
+        "SlogP_VSA8",
+        "SlogP_VSA9",
+        "SlogP_VSA10",
+        "SlogP_VSA11",
+        "SlogP_VSA12",
+        "EState_VSA1",
+        "EState_VSA2",
+        "EState_VSA3",
+        "EState_VSA4",
+        "EState_VSA5",
+        "EState_VSA6",
+        "EState_VSA7",
+        "EState_VSA8",
+        "EState_VSA9",
+        "EState_VSA10",
+        "EState_VSA11",
+        "VSA_EState1",
+        "VSA_EState2",
+        "VSA_EState3",
+        "VSA_EState4",
+        "VSA_EState5",
+        "VSA_EState6",
+        "VSA_EState7",
+        "VSA_EState8",
+        "VSA_EState9",
+        "VSA_EState10",
+    ],
+    "수소결합": [
+        "NumHDonors",
+        "NumHAcceptors",
+        "NHOHCount",
+        "NOCount",
+        "NumAmideBonds",
+    ],
+    "방향족성": [
+        "NumAromaticRings",
+        "NumAromaticHeterocycles",
+        "NumAromaticCarbocycles",
+    ],
+    "복잡도": [
+        "RingCount",
+        "NumAliphaticRings",
+        "NumAliphaticHeterocycles",
+        "NumAliphaticCarbocycles",
+        "NumSaturatedRings",
+        "NumSaturatedHeterocycles",
+        "NumSaturatedCarbocycles",
+        "NumRotatableBonds",
+        "NumHeteroatoms",
+        "FractionCSP3",
+        "qed",
+    ],
+}
+
+RDKIT_DESCRIPTOR_LIST_FLAT: list[str] = [
+    name
+    for names in RDKIT_DESCRIPTOR_LIST.values()
+    for name in names
+]
+
+ATOM_BOND_COUNT_REFERENCE: dict[str, dict[str, str]] = {
+    "atom_counts": {
+        "total_atoms": "mol.GetNumAtoms()",
+        "heavy_atoms": "mol.GetNumHeavyAtoms()",
+        "C_count": "sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 6)",
+        "N_count": "sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 7)",
+        "O_count": "sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 8)",
+        "S_count": "sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 16)",
+        "F_count": "sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 9)",
+        "Cl_count": "sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 17)",
+        "Br_count": "sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 35)",
+        "I_count": "sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 53)",
+        "P_count": "sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 15)",
+        "sp3_C_count": "sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and a.GetHybridization().name == 'SP3')",
+        "sp2_C_count": "sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and a.GetHybridization().name == 'SP2')",
+        "aromatic_C_count": "sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() == 6 and a.GetIsAromatic())",
+    },
+    "bond_counts": {
+        "total_bonds": "mol.GetNumBonds()",
+        "single_bonds": "sum(1 for b in mol.GetBonds() if b.GetBondTypeAsDouble() == 1.0)",
+        "double_bonds": "sum(1 for b in mol.GetBonds() if b.GetBondTypeAsDouble() == 2.0)",
+        "triple_bonds": "sum(1 for b in mol.GetBonds() if b.GetBondTypeAsDouble() == 3.0)",
+        "aromatic_bonds": "sum(1 for b in mol.GetBonds() if b.GetIsAromatic())",
+        "rotatable_bonds": "rdMolDescriptors.CalcNumRotatableBonds(mol)",
+        "C_C_bonds": "sum(1 for b in mol.GetBonds() if b.GetBeginAtom().GetAtomicNum() == 6 and b.GetEndAtom().GetAtomicNum() == 6)",
+        "C_N_bonds": "sum(1 for b in mol.GetBonds() if set([b.GetBeginAtom().GetAtomicNum(), b.GetEndAtom().GetAtomicNum()]) == {6, 7})",
+        "C_O_bonds": "sum(1 for b in mol.GetBonds() if set([b.GetBeginAtom().GetAtomicNum(), b.GetEndAtom().GetAtomicNum()]) == {6, 8})",
+    },
+    "ring_counts": {
+        "total_rings": "mol.GetRingInfo().NumRings()",
+        "aromatic_rings": "rdMolDescriptors.CalcNumAromaticRings(mol)",
+        "aliphatic_rings": "rdMolDescriptors.CalcNumAliphaticRings(mol)",
+        "saturated_rings": "rdMolDescriptors.CalcNumSaturatedRings(mol)",
+        "aromatic_heterocycles": "rdMolDescriptors.CalcNumAromaticHeterocycles(mol)",
+        "aliphatic_heterocycles": "rdMolDescriptors.CalcNumAliphaticHeterocycles(mol)",
+        "aromatic_carbocycles": "rdMolDescriptors.CalcNumAromaticCarbocycles(mol)",
+        "3_membered_rings": "sum(1 for r in mol.GetRingInfo().AtomRings() if len(r) == 3)",
+        "4_membered_rings": "sum(1 for r in mol.GetRingInfo().AtomRings() if len(r) == 4)",
+        "5_membered_rings": "sum(1 for r in mol.GetRingInfo().AtomRings() if len(r) == 5)",
+        "6_membered_rings": "sum(1 for r in mol.GetRingInfo().AtomRings() if len(r) == 6)",
+        "large_rings": "sum(1 for r in mol.GetRingInfo().AtomRings() if len(r) > 6)",
+    },
+}
+
+FEATURE_FALLBACK_MAP: dict[str, list[str]] = {
+    "side chain number": ["BertzCT", "Chi0v", "Chi1v"],
+    "branching": ["BertzCT", "Chi0v"],
+    "branch count": ["BertzCT", "Chi0v", "Chi1v"],
+    "mf": ["HeavyAtomCount", "NumHeteroatoms", "NumValenceElectrons"],
+    "molecular formula": ["HeavyAtomCount", "NumHeteroatoms"],
+    "complexity": ["BertzCT", "Ipc"],
+    "molecular complexity": ["BertzCT", "Ipc", "HallKierAlpha"],
+    "topological complexity": ["BertzCT", "Chi0v", "Ipc"],
+    "ring": ["RingCount", "NumAromaticRings", "NumAliphaticRings"],
+    "ring count": ["RingCount", "NumAromaticRings", "NumAliphaticRings"],
+    "ring size": ["RingCount", "NumAromaticRings"],
+    "aromaticity": ["NumAromaticRings", "NumAromaticHeterocycles", "NumAromaticCarbocycles"],
+    "charge": ["MaxPartialCharge", "MinPartialCharge", "MaxAbsPartialCharge"],
+    "partial charge": ["MaxPartialCharge", "MinPartialCharge", "MaxAbsPartialCharge"],
+    "electronegativity": ["MaxAbsPartialCharge", "PEOE_VSA1", "PEOE_VSA2"],
+    "lipophilicity": ["MolLogP", "MolMR"],
+    "logp": ["MolLogP"],
+    "solubility": ["MolLogP", "TPSA", "NumHDonors", "NumHAcceptors"],
+    "hydrophilicity": ["TPSA", "NumHDonors", "NumHAcceptors"],
+    "flexibility": ["NumRotatableBonds", "Phi"],
+    "rigidity": ["RingCount", "FractionCSP3"],
+    "rotatable bonds": ["NumRotatableBonds"],
+    "surface area": ["LabuteASA", "TPSA"],
+    "molar volume": ["MolMR", "LabuteASA"],
+    "molecular size": ["HeavyAtomCount", "MolWt", "LabuteASA"],
+    "hbd": ["NumHDonors"],
+    "hba": ["NumHAcceptors"],
+    "hydrogen bond": ["NumHDonors", "NumHAcceptors"],
+    "polarity": ["TPSA", "MaxPartialCharge", "MinPartialCharge"],
+    "drug likeness": ["MolLogP", "MolWt", "NumHDonors", "NumHAcceptors", "NumRotatableBonds"],
+    "bioavailability": ["MolLogP", "TPSA", "NumHDonors", "NumHAcceptors"],
+    "sp3 fraction": ["FractionCSP3"],
+    "saturation": ["FractionCSP3", "NumSaturatedRings"],
+}
+
+COMMON_CHEMISTRY_DESCRIPTORS: list[str] = [
+    "MolWt",  # 분자량
+    "TPSA",  # 위상 극성 표면적
+    "MolLogP",  # 친지질성
+    "HeavyAtomCount",  # 분자 크기
+    "NumHDonors",  # 수소결합 공여체
+    "NumHAcceptors",  # 수소결합 수용체
+    "NumRotatableBonds",  # 유연성
+    "RingCount",  # 고리 구조 복잡도
+    "NumAromaticRings",  # 방향족성
+    "BertzCT",  # 구조 복잡도
+    "Chi0v",  # 연결성
+    "MaxPartialCharge",  # 전하 편향
+    "LabuteASA",  # 표면적 근사
+    "FractionCSP3",  # 포화도
+    "Ipc",  # 정보 위상 복잡도
+]

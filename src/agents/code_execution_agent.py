@@ -1,18 +1,27 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
 
 from src.utils import sanitize_python_code
+from src.utils.runtime_env import resolve_project_python_executable
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 GENERATED_CODE_DIR = PROJECT_ROOT / "artifacts" / "generated_code"
 GENERATED_CODE_DIR.mkdir(parents=True, exist_ok=True)
+METRIC_ALIASES = {
+    "mae": "MAE",
+    "rmse": "RMSE",
+    "mse": "MSE",
+    "r2": "R2",
+    "r^2": "R2",
+    "r²": "R2",
+}
 
 
 class CodeExecutionState(TypedDict, total=False):
@@ -72,8 +81,9 @@ class CodeExecutionAgent:
     def build_command(self, state: CodeExecutionState) -> CodeExecutionState:
         if state.get("error"):
             return state
+        python_executable = resolve_project_python_executable(state.get("python_executable"))
         command = [
-            state.get("python_executable") or sys.executable,
+            python_executable,
             state.get("code_path", ""),
             "--data-path",
             state.get("data_path", ""),
@@ -134,14 +144,90 @@ class CodeExecutionAgent:
         if not text:
             return {}
         try:
-            return json.loads(text)
+            return self._normalize_execution_payload(json.loads(text))
         except json.JSONDecodeError:
             start_index = text.find("{")
             end_index = text.rfind("}")
             if start_index == -1 or end_index == -1 or end_index <= start_index:
-                return {"raw_output": text}
+                return self._normalize_execution_payload({"raw_output": text})
             candidate = text[start_index : end_index + 1]
             try:
-                return json.loads(candidate)
+                return self._normalize_execution_payload(json.loads(candidate))
             except json.JSONDecodeError:
-                return {"raw_output": text}
+                return self._normalize_execution_payload({"raw_output": text})
+
+    def _normalize_execution_payload(self, payload: Any) -> dict[str, Any]:
+        if not isinstance(payload, dict):
+            return {}
+
+        normalized = dict(payload)
+        normalized["metrics"] = self._extract_metrics(normalized)
+        normalized["y_test"] = self._coerce_float_list(normalized.get("y_test"))
+        normalized["y_pred"] = self._coerce_float_list(normalized.get("y_pred"))
+        assumptions = normalized.get("assumptions", [])
+        normalized["assumptions"] = assumptions if isinstance(assumptions, list) else []
+        return normalized
+
+    def _extract_metrics(self, payload: dict[str, Any]) -> dict[str, float]:
+        metrics: dict[str, float] = {}
+        for source in [
+            payload,
+            payload.get("metrics"),
+            payload.get("metric"),
+            payload.get("results", {}),
+            payload.get("results", {}).get("metrics") if isinstance(payload.get("results"), dict) else {},
+            payload.get("parsed_output", {}),
+        ]:
+            metrics.update(self._coerce_metric_map(source))
+
+        if metrics:
+            return metrics
+
+        raw_output = str(payload.get("raw_output", ""))
+        return self._extract_metrics_from_text(raw_output)
+
+    def _coerce_metric_map(self, source: Any) -> dict[str, float]:
+        if not isinstance(source, dict):
+            return {}
+
+        metrics: dict[str, float] = {}
+        for raw_key, raw_value in source.items():
+            canonical_key = METRIC_ALIASES.get(str(raw_key).strip().lower())
+            if not canonical_key:
+                continue
+            numeric_value = self._to_float(raw_value)
+            if numeric_value is not None:
+                metrics[canonical_key] = numeric_value
+        return metrics
+
+    def _extract_metrics_from_text(self, text: str) -> dict[str, float]:
+        metrics: dict[str, float] = {}
+        patterns = {
+            "MAE": r"\bMAE\b\s*[:=]?\s*(-?\d+(?:\.\d+)?)",
+            "RMSE": r"\bRMSE\b\s*[:=]?\s*(-?\d+(?:\.\d+)?)",
+            "MSE": r"\bMSE\b\s*[:=]?\s*(-?\d+(?:\.\d+)?)",
+            "R2": r"(?:\bR\^?2\b|R²)\s*[:=]?\s*(-?\d+(?:\.\d+)?)",
+        }
+        for metric_name, pattern in patterns.items():
+            match = re.search(pattern, text, flags=re.IGNORECASE)
+            if match:
+                numeric_value = self._to_float(match.group(1))
+                if numeric_value is not None:
+                    metrics[metric_name] = numeric_value
+        return metrics
+
+    def _coerce_float_list(self, value: Any) -> list[float]:
+        if not isinstance(value, list):
+            return []
+        result: list[float] = []
+        for item in value:
+            numeric_value = self._to_float(item)
+            if numeric_value is not None:
+                result.append(numeric_value)
+        return result
+
+    def _to_float(self, value: Any) -> float | None:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None

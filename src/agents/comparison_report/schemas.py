@@ -39,6 +39,9 @@ class ComparisonReportState(TypedDict, total=False):
     execution_spec: dict[str, Any]
     comparison_table_markdown: str
     analysis_markdown: str
+    summary_status: str
+    summary_headline: str
+    summary_paragraphs: list[str]
     report_markdown: str
     report_path: str
     final_output: dict[str, Any]

@@ -1,0 +1,3487 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChemRepro — 논문 재현 플랫폼</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap');
+
+/* ── CSS VARIABLES ── */
+:root {
+  --bg-base:       #0d0f14;
+  --bg-surface:    #13161e;
+  --bg-raised:     #1a1e2a;
+  --bg-hover:      #1f2433;
+  --bg-card:       #161923;
+
+  --border:        #252a38;
+  --border-subtle: #1d2130;
+
+  --accent:        #4f8ef7;
+  --accent-dim:    rgba(79,142,247,0.12);
+  --accent-glow:   rgba(79,142,247,0.25);
+  --green:         #3ecf8e;
+  --green-dim:     rgba(62,207,142,0.12);
+  --amber:         #f5a623;
+  --amber-dim:     rgba(245,166,35,0.12);
+  --red:           #e05c6a;
+  --red-dim:       rgba(224,92,106,0.12);
+  --purple:        #a78bfa;
+  --purple-dim:    rgba(167,139,250,0.12);
+  --cyan:          #22d3ee;
+
+  --text-primary:  #e8ecf4;
+  --text-secondary:#8b93a8;
+  --text-muted:    #50596e;
+  --text-disabled: #333a4d;
+
+  --font-sans: 'DM Sans', 'Noto Sans KR', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --nav-w: 220px;
+  --panel-w: 260px;
+  --header-h: 56px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; scroll-behavior: smooth; }
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── LAYOUT ── */
+#app {
+  display: grid;
+  grid-template-rows: var(--header-h) 1fr;
+  grid-template-columns: var(--nav-w) 1fr var(--panel-w);
+  grid-template-areas: "header header header" "nav main panel";
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── HEADER ── */
+#header {
+  grid-area: header;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+  z-index: 100;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.logo-icon {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, var(--accent), var(--cyan));
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+
+.logo span { color: var(--accent); }
+.header-divider { width: 1px; height: 20px; background: var(--border); }
+
+.header-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.header-breadcrumb .crumb-active { color: var(--text-primary); font-weight: 500; }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+.badge-session {
+  background: var(--green-dim);
+  color: var(--green);
+  border: 1px solid rgba(62,207,142,0.25);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.badge-session::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ── LEFT NAV ── */
+#nav {
+  grid-area: nav;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 20px 0;
+}
+
+.nav-section-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-disabled);
+  padding: 0 16px 8px;
+}
+
+.step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.step-item:hover:not(.locked) { background: var(--bg-hover); }
+
+.step-item.active { border-left-color: var(--accent); background: var(--accent-dim); }
+.step-item.active .step-num { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+.step-item.active .step-title { color: var(--accent); }
+
+.step-item.done .step-num { background: var(--green); color: #000; border-color: var(--green); }
+.step-item.done .step-title { color: var(--text-primary); }
+
+.step-item.locked { opacity: 0.4; cursor: not-allowed; }
+
+.step-num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: all 0.2s;
+}
+
+.step-content { flex: 1; min-width: 0; }
+
+.step-title {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-subtitle { font-size: 0.7rem; color: var(--text-muted); margin-top: 1px; }
+
+.step-connector {
+  width: 1.5px;
+  height: 10px;
+  background: var(--border-subtle);
+  margin: 0 auto 0 27px;
+}
+
+.step-connector.done-line { background: var(--green); opacity: 0.5; }
+
+.nav-bottom {
+  margin-top: auto;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.progress-track {
+  height: 3px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--cyan));
+  border-radius: 999px;
+  width: 0%;
+  transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+}
+
+.progress-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ── MAIN AREA ── */
+#main { grid-area: main; overflow-y: auto; overflow-x: hidden; background: var(--bg-base); }
+
+.main-inner { max-width: 860px; margin: 0 auto; padding: 28px 32px; }
+
+/* step screens */
+.step-screen { display: none; }
+.step-screen.active { display: block; animation: fadeIn 0.2s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+.step-header { margin-bottom: 24px; }
+.step-tag { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 6px; }
+.step-title-h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text-primary); line-height: 1.2; }
+.step-desc { font-size: 0.82rem; color: var(--text-secondary); margin-top: 6px; max-width: 600px; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.card-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-title-icon {
+  width: 24px; height: 24px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+}
+
+/* ── INFO BANNER ── */
+.info-banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--accent-dim);
+  border: 1px solid rgba(79,142,247,0.2);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.info-banner.error { background: var(--red-dim); border-color: rgba(224,92,106,0.25); }
+.info-banner.success { background: var(--green-dim); border-color: rgba(62,207,142,0.25); }
+
+.info-banner-icon { font-size: 15px; flex-shrink: 0; }
+.info-banner-text { font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5; }
+.info-banner-text strong { color: var(--accent); }
+.info-banner.error .info-banner-text strong { color: var(--red); }
+.info-banner.success .info-banner-text strong { color: var(--green); }
+
+/* ── UPLOAD ZONES ── */
+.upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+.upload-zone {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-card);
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-zone::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, var(--accent-dim) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.upload-zone:hover { border-color: var(--accent); background: var(--accent-dim); }
+.upload-zone:hover::before { opacity: 1; }
+
+.upload-zone.filled { border-color: var(--green); background: var(--green-dim); border-style: solid; }
+.upload-zone.filled::before { background: radial-gradient(ellipse at 50% 0%, var(--green-dim) 0%, transparent 70%); opacity: 1; }
+
+.upload-icon { font-size: 28px; margin-bottom: 12px; display: block; }
+.upload-title { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+.upload-hint { font-size: 0.72rem; color: var(--text-muted); line-height: 1.5; }
+
+.upload-file-info {
+  margin-top: 12px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--green);
+  font-weight: 500;
+}
+
+.upload-zone.filled .upload-file-info { display: flex; }
+.upload-zone.filled .upload-default { display: none; }
+input[type="file"] { display: none; }
+
+/* ── STEP 2 — COLUMN DETECTION ── */
+.col-detect-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+
+.col-detect-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+
+.col-detect-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.col-detect-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.confidence-badge.high { background: var(--green-dim); color: var(--green); border: 1px solid rgba(62,207,142,0.25); }
+.confidence-badge.medium { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,166,35,0.25); }
+.confidence-badge.low { background: var(--red-dim); color: var(--red); border: 1px solid rgba(224,92,106,0.25); }
+
+/* column selectors */
+.col-selector-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+
+.col-selector-wrap { display: flex; flex-direction: column; gap: 6px; }
+
+.col-selector-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.role-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.role-dot.smiles { background: var(--accent); }
+.role-dot.target { background: var(--green); }
+
+select {
+  width: 100%;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+select:focus { border-color: var(--accent); }
+
+select option { background: var(--bg-raised); }
+
+/* sheet selector */
+.sheet-selector-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.sheet-selector-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.sheet-selector-wrap select { margin: 0; }
+
+/* ── STATS ROW ── */
+.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+
+.stat-chip {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+.stat-chip-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+.stat-chip-value { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono); }
+
+/* ── DATA PREVIEW TABLE ── */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+}
+
+thead tr { background: var(--bg-raised); }
+
+th {
+  padding: 9px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.67rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+
+th.col-smiles { color: var(--accent); }
+th.col-target { color: var(--green); }
+
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+td.col-smiles { color: var(--accent); }
+td.col-target { color: var(--green); font-weight: 600; }
+
+tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--bg-hover); }
+
+/* ── STEP 3 — PAPER PARSING ── */
+.parse-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--amber-dim);
+  border: 1px solid rgba(245,166,35,0.25);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--amber);
+}
+
+.parse-status-bar.done {
+  background: var(--green-dim);
+  border-color: rgba(62,207,142,0.25);
+  color: var(--green);
+}
+
+.cache-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--purple-dim);
+  border: 1px solid rgba(167,139,250,0.25);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--purple);
+  margin-left: auto;
+}
+
+.markdown-preview-box {
+  background: #0b0d13;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  max-height: 400px;
+  overflow-y: auto;
+  font-size: 0.78rem;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+}
+
+.markdown-rendered {
+  background: #0b0d13;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  max-height: 420px;
+  overflow-y: auto;
+  font-size: 0.8rem;
+  line-height: 1.8;
+  color: var(--text-secondary);
+}
+
+.markdown-rendered h1,
+.markdown-rendered h2 {
+  color: var(--text-primary);
+  font-weight: 700;
+  margin: 16px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.markdown-rendered h1 { font-size: 1rem; }
+.markdown-rendered h2 { font-size: 0.88rem; }
+
+.markdown-rendered h3 {
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin: 12px 0 4px;
+}
+
+.markdown-rendered p  { margin-bottom: 8px; }
+.markdown-rendered ul,
+.markdown-rendered ol { margin: 6px 0 8px 20px; }
+.markdown-rendered li { margin-bottom: 3px; }
+
+.markdown-rendered code {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--cyan);
+}
+
+.markdown-rendered strong { color: var(--text-primary); }
+
+.parse-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.parse-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.parse-meta-chip.accent { color: var(--accent); border-color: rgba(79,142,247,0.3); background: var(--accent-dim); }
+.parse-meta-chip.green  { color: var(--green);  border-color: rgba(62,207,142,0.3);  background: var(--green-dim);  }
+
+/* ── STEP 4 — RAG EXTRACTION ── */
+.rag-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.rag-info-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  min-width: 0;
+}
+
+.rag-info-card-label {
+  font-size: 0.63rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.rag-info-card-value {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rag-info-card-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.rag-section-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin: 14px 0 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.feature-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.feature-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.feature-chip.fp    { border-color: rgba(167,139,250,0.3); color: var(--purple); background: var(--purple-dim); }
+.feature-chip.desc  { border-color: rgba(79,142,247,0.3);  color: var(--accent); background: var(--accent-dim); }
+.feature-chip.count { border-color: rgba(34,211,238,0.3);  color: var(--cyan);   background: rgba(34,211,238,0.1); }
+
+.chip-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.spec-json-box {
+  background: #0b0d13;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre;
+  display: none;
+}
+
+.spec-json-box.open { display: block; }
+
+.hp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.hp-chip {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hp-chip-key   { font-size: 0.63rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.hp-chip-value { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono); }
+
+/* ── RAG RESULT CARDS (reference style) ── */
+.rag-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.rag-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  min-width: 0;
+}
+
+.rag-card-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.rag-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.confidence-bar-wrap { margin-top: 8px; }
+.confidence-bar-wrap .label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.confidence-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.confidence-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--cyan));
+  transition: width 1s cubic-bezier(0.4,0,0.2,1);
+}
+.evidence-score { color: var(--accent); font-weight: 600; }
+
+/* ── REASONING BOX ── */
+.reasoning-toggle {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: var(--font-sans);
+  transition: color 0.15s;
+}
+
+.reasoning-toggle:hover { color: var(--accent); }
+
+.reasoning-box {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  display: none;
+}
+
+.reasoning-box.open { display: block; }
+
+/* ── BUTTONS ── */
+.btn-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.btn-row .spacer { flex: 1; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: var(--radius-md);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  font-family: var(--font-sans);
+  letter-spacing: 0.01em;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #6fa3ff;
+  box-shadow: 0 0 24px var(--accent-glow);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
+
+.spin { animation: spin 1s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── RIGHT PANEL ── */
+#panel {
+  grid-area: panel;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  flex-shrink: 0;
+}
+
+.panel-body { flex: 1; overflow-y: auto; padding: 16px; }
+
+.panel-section { margin-bottom: 20px; }
+
+.panel-section-title {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.status-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.status-item:last-child { border-bottom: none; }
+
+.status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.status-dot.ok     { background: var(--green); }
+.status-dot.warn   { background: var(--amber); }
+.status-dot.error  { background: var(--red); }
+.status-dot.info   { background: var(--accent); animation: pulse 2s infinite; }
+.status-dot.idle   { background: var(--border); }
+
+.status-text { font-size: 0.72rem; color: var(--text-secondary); line-height: 1.5; }
+.status-text strong { color: var(--text-primary); font-weight: 500; }
+
+.session-kv { display: flex; flex-direction: column; gap: 8px; }
+
+.session-kv-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.7rem;
+}
+
+.session-kv-label { color: var(--text-muted); flex-shrink: 0; }
+
+.session-kv-value {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 130px;
+}
+
+/* ── MARKDOWN TABLE ── */
+.md-table-wrap { overflow-x: auto; margin: 12px 0; border-radius: var(--radius-md); border: 1px solid var(--border); }
+
+.md-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.72rem; }
+
+.md-table th {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 0.63rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.md-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  white-space: normal;
+  word-break: break-word;
+  max-width: 280px;
+  vertical-align: top;
+}
+
+.md-table tr:last-child td { border-bottom: none; }
+.md-table tbody tr:hover td { background: var(--bg-hover); }
+
+/* ── STEP 5 — CODE GENERATION ── */
+.gen-code-block {
+  background: #0b0d13;
+  white-space: pre;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 480px;
+  font-size: 0.72rem;
+  color: #a8b3c8;
+  line-height: 1.7;
+  tab-size: 4;
+  font-family: var(--font-mono);
+}
+
+.iter-timeline { display: flex; flex-direction: column; gap: 10px; }
+
+.iter-item { display: flex; align-items: flex-start; gap: 10px; font-size: 0.75rem; }
+
+.iter-badge {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.iter-badge.ok  { background: var(--green); color: #000; }
+.iter-badge.err { background: var(--red-dim); color: var(--red); border: 1px solid rgba(224,92,106,0.3); }
+.iter-badge.warn { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,166,35,0.3); }
+
+.iter-content { flex: 1; min-width: 0; }
+.iter-label  { font-size: 0.75rem; color: var(--text-secondary); font-weight: 500; }
+.iter-detail { font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; font-family: var(--font-mono); white-space: pre-wrap; word-break: break-all; }
+
+/* ── STEP 6 — RESULTS ── */
+.exec-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.exec-status-bar.success { background: var(--green-dim); border: 1px solid rgba(62,207,142,0.25); color: var(--green); }
+.exec-status-bar.failed  { background: var(--red-dim);   border: 1px solid rgba(224,92,106,0.25); color: var(--red); }
+
+.metrics-compare-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+
+.metrics-compare-table th {
+  padding: 10px 14px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+
+.metrics-compare-table th:first-child { text-align: left; }
+
+.metrics-compare-table td {
+  padding: 10px 14px;
+  text-align: right;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  max-width: none;
+  white-space: nowrap;
+}
+
+.metrics-compare-table td:first-child { text-align: left; font-weight: 700; }
+.metrics-compare-table tr:last-child td { border-bottom: none; }
+.metrics-compare-table tbody tr:hover td { background: var(--bg-hover); }
+
+.diff-good { color: var(--green); font-weight: 700; }
+.diff-bad  { color: var(--red);   font-weight: 700; }
+
+/* ── ITER ERROR (improved) ── */
+.iter-error-short {
+  font-size: 0.68rem;
+  color: var(--red);
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--red-dim);
+  border: 1px solid rgba(224,92,106,0.2);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  line-height: 1.5;
+}
+
+/* ── SCATTER PLOT ── */
+.axis-label { font-family: var(--font-sans); font-size: 9px; fill: var(--text-muted); }
+
+.scatter-wrap {
+  background: #0b0d13;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  overflow: hidden;
+}
+
+/* ── ANALYSIS SUMMARY ── */
+.analysis-overall {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.analysis-overall.good    { background: var(--green-dim); color: var(--green); border: 1px solid rgba(62,207,142,0.25); }
+.analysis-overall.partial { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,166,35,0.25); }
+.analysis-overall.fail    { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(224,92,106,0.25); }
+
+.analysis-overall-label { font-size: 0.72rem; font-weight: 700; font-family: var(--font-mono); }
+
+.analysis-rows { display: flex; flex-direction: column; }
+
+.analysis-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.analysis-row:last-child { border-bottom: none; }
+
+.analysis-metric { font-weight: 700; font-family: var(--font-mono); color: var(--text-primary); min-width: 46px; }
+
+.analysis-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.analysis-badge.good    { background: var(--green-dim); color: var(--green); border: 1px solid rgba(62,207,142,0.25); }
+.analysis-badge.partial { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,166,35,0.25); }
+.analysis-badge.fail    { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(224,92,106,0.25); }
+
+.analysis-detail { font-size: 0.7rem; color: var(--text-secondary); font-family: var(--font-mono); }
+
+.analysis-note { font-size: 0.63rem; color: var(--text-muted); margin-top: 10px; font-style: italic; }
+
+.analysis-text-rows { display: flex; flex-direction: column; gap: 2px; }
+
+.analysis-interp {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.75;
+  padding: 8px 12px;
+  background: var(--bg-raised);
+  border-left: 2px solid var(--border);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* ── LIBRARY NAV ── */
+.nav-lib-sep { height: 1px; background: var(--border-subtle); margin: 8px 16px; }
+
+.nav-lib-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: all 0.15s; user-select: none;
+}
+.nav-lib-item:hover { background: var(--bg-hover); }
+.nav-lib-item.active { border-left-color: var(--purple); background: var(--purple-dim); }
+.nav-lib-item.active .nav-lib-icon  { background: var(--purple); color: #fff; border-color: var(--purple); }
+.nav-lib-item.active .nav-lib-title { color: var(--purple); }
+
+.nav-lib-icon {
+  width: 22px; height: 22px; border-radius: 6px;
+  background: var(--bg-raised); border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; flex-shrink: 0; transition: all 0.2s;
+}
+.nav-lib-title { font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); transition: color 0.15s; }
+
+/* ── LIBRARY SCREEN ── */
+#screen-lib { display: none; }
+#screen-lib.active { display: block; animation: fadeIn 0.2s ease-out; }
+
+.lib-header-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+
+.lib-filter-chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+
+.lib-chip {
+  padding: 4px 12px; border-radius: 999px; font-size: 0.72rem; font-weight: 600;
+  cursor: pointer; border: 1px solid var(--border); background: var(--bg-raised);
+  color: var(--text-secondary); transition: all 0.15s; user-select: none;
+}
+.lib-chip:hover  { border-color: var(--accent); color: var(--accent); }
+.lib-chip.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+.lib-search {
+  padding: 7px 12px; border-radius: var(--radius-md);
+  border: 1px solid var(--border); background: var(--bg-raised);
+  color: var(--text-primary); font-size: 0.78rem; font-family: var(--font-sans);
+  outline: none; width: 200px; transition: border-color 0.15s;
+}
+.lib-search:focus { border-color: var(--accent); }
+.lib-search::placeholder { color: var(--text-muted); }
+
+.lib-card-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 80px; }
+
+.lib-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px 18px;
+  display: flex; align-items: flex-start; gap: 14px;
+  transition: border-color 0.15s; position: relative;
+}
+.lib-card:hover { border-color: var(--accent); }
+.lib-card.selected { border-color: var(--accent); background: var(--accent-dim); }
+
+.lib-card-check {
+  width: 18px; height: 18px; border: 1.5px solid var(--border);
+  border-radius: 4px; flex-shrink: 0; margin-top: 2px; cursor: pointer;
+  background: var(--bg-raised); display: flex; align-items: center; justify-content: center;
+  font-size: 10px; transition: all 0.15s; color: transparent;
+}
+.lib-card.selected .lib-card-check { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.lib-card-body { flex: 1; min-width: 0; }
+.lib-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.lib-card-name { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
+.lib-card-meta { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 10px; }
+
+.lib-model-chip {
+  padding: 2px 9px; border-radius: 999px;
+  background: var(--purple-dim); color: var(--purple);
+  border: 1px solid rgba(167,139,250,0.25);
+  font-size: 0.65rem; font-weight: 600; font-family: var(--font-mono); flex-shrink: 0;
+}
+
+.lib-metrics-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 8px; }
+.lib-metric-group { display: flex; flex-direction: column; gap: 2px; }
+.lib-metric-label { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.lib-metric-values { display: flex; gap: 6px; align-items: baseline; }
+.lib-metric-paper  { font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-muted); }
+.lib-metric-repro  { font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-primary); font-weight: 600; }
+.lib-metric-sep    { font-size: 0.65rem; color: var(--text-disabled); }
+
+.lib-status-badge {
+  display: inline-flex; align-items: center; padding: 2px 10px;
+  border-radius: 999px; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em;
+}
+.lib-status-badge.good    { background: var(--green-dim); color: var(--green);  border: 1px solid rgba(62,207,142,0.25); }
+.lib-status-badge.partial { background: var(--amber-dim); color: var(--amber);  border: 1px solid rgba(245,166,35,0.25); }
+.lib-status-badge.limited { background: var(--amber-dim); color: var(--amber);  border: 1px solid rgba(245,166,35,0.25); }
+.lib-status-badge.poor    { background: var(--red-dim);   color: var(--red);    border: 1px solid rgba(224,92,106,0.25); }
+.lib-status-badge.failed  { background: var(--red-dim);   color: var(--red);    border: 1px solid rgba(224,92,106,0.25); }
+
+.lib-card-del {
+  position: absolute; top: 12px; right: 12px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text-muted); font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: all 0.15s;
+}
+.lib-card:hover .lib-card-del { opacity: 1; }
+.lib-card-del:hover { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+
+.lib-empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+.lib-empty-icon { font-size: 40px; margin-bottom: 12px; }
+.lib-empty-text { font-size: 0.82rem; line-height: 1.6; }
+
+.lib-select-bar {
+  position: fixed; bottom: 0; left: var(--nav-w); right: var(--panel-w);
+  background: var(--bg-surface); border-top: 1px solid var(--border);
+  padding: 12px 32px; display: flex; align-items: center; gap: 14px;
+  transform: translateY(100%);
+  transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+  z-index: 90;
+}
+.lib-select-bar.visible { transform: translateY(0); }
+.lib-select-count { font-size: 0.78rem; color: var(--text-secondary); font-weight: 500; }
+
+.lib-compare-panel {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 20px; margin-top: 16px; display: none;
+}
+.lib-compare-panel.visible { display: block; animation: fadeIn 0.2s ease-out; }
+.lib-compare-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.lib-compare-title { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); }
+
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--accent); }
+th.sortable::after { content: ' ⇅'; font-size: 0.6rem; color: var(--text-muted); }
+th.sort-asc::after  { content: ' ↑'; color: var(--accent); }
+th.sort-desc::after { content: ' ↓'; color: var(--accent); }
+
+/* ── TOAST ── */
+.toast-container {
+  position: fixed; top: 70px; right: 20px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 9999; pointer-events: none;
+}
+.toast {
+  padding: 10px 16px; border-radius: var(--radius-md); font-size: 0.78rem; font-weight: 500;
+  min-width: 220px; max-width: 340px; pointer-events: auto;
+  animation: toast-in 0.25s ease-out;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+.toast.success { background: var(--green-dim); color: var(--green); border: 1px solid rgba(62,207,142,0.35); }
+.toast.error   { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(224,92,106,0.35); }
+.toast.info    { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(79,142,247,0.35); }
+@keyframes toast-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1100px) {
+  :root { --panel-w: 0px; }
+  #panel { display: none; }
+  #app { grid-template-columns: var(--nav-w) 1fr; grid-template-areas: "header header" "nav main"; }
+}
+
+@media (max-width: 768px) {
+  :root { --nav-w: 0px; --header-h: 50px; }
+  #nav { display: none; }
+  #app { grid-template-columns: 1fr; grid-template-areas: "header" "main"; }
+  .main-inner { padding: 16px; }
+  .upload-grid, .col-detect-grid, .col-selector-row, .stats-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ── HEADER ── -->
+<header id="header">
+  <div class="logo">
+    <div class="logo-icon">⚗</div>
+    Chem<span>Repro</span>
+  </div>
+  <div class="header-divider"></div>
+  <div class="header-breadcrumb">
+    <span>New Session</span>
+    <span style="color:var(--text-disabled)">›</span>
+    <span class="crumb-active" id="header-crumb">파일 업로드</span>
+  </div>
+  <div class="header-right">
+    <div class="badge-session">Session Ready</div>
+  </div>
+</header>
+
+<!-- ── LEFT NAV ── -->
+<nav id="nav">
+  <div class="nav-section-label">Workflow</div>
+
+  <div class="step-item active" id="nav-1" onclick="tryGoStep(1)">
+    <div class="step-num" id="num-1">1</div>
+    <div class="step-content">
+      <div class="step-title">파일 업로드</div>
+      <div class="step-subtitle">PDF + CSV/Excel</div>
+    </div>
+  </div>
+  <div class="step-connector" id="conn-1"></div>
+
+  <div class="step-item locked" id="nav-2" onclick="tryGoStep(2)">
+    <div class="step-num" id="num-2">2</div>
+    <div class="step-content">
+      <div class="step-title">데이터 확인</div>
+      <div class="step-subtitle">컬럼 인식 · 통계</div>
+    </div>
+  </div>
+  <div class="step-connector" id="conn-2"></div>
+
+  <div class="step-item locked" id="nav-3" onclick="tryGoStep(3)">
+    <div class="step-num" id="num-3">3</div>
+    <div class="step-content">
+      <div class="step-title">논문 파싱</div>
+      <div class="step-subtitle">Markdown 변환</div>
+    </div>
+  </div>
+  <div class="step-connector" id="conn-3"></div>
+
+  <div class="step-item locked" id="nav-4" onclick="tryGoStep(4)">
+    <div class="step-num" id="num-4">4</div>
+    <div class="step-content">
+      <div class="step-title">RAG 추출</div>
+      <div class="step-subtitle">Feature · 모델 · 설정</div>
+    </div>
+  </div>
+  <div class="step-connector" id="conn-4"></div>
+
+  <div class="step-item locked" id="nav-5" onclick="tryGoStep(5)">
+    <div class="step-num" id="num-5">5</div>
+    <div class="step-content">
+      <div class="step-title">코드 생성</div>
+      <div class="step-subtitle">RDKit + sklearn</div>
+    </div>
+  </div>
+  <div class="step-connector" id="conn-5"></div>
+
+  <div class="step-item locked" id="nav-6" onclick="tryGoStep(6)">
+    <div class="step-num" id="num-6">6</div>
+    <div class="step-content">
+      <div class="step-title">실행 결과</div>
+      <div class="step-subtitle">Metric 비교 보고서</div>
+    </div>
+  </div>
+
+      <div class="nav-lib-sep"></div>
+      <div class="nav-lib-item" id="nav-lib" onclick="showLibrary()">
+        <div class="nav-lib-icon">&#128218;</div>
+        <div class="step-content">
+          <div class="nav-lib-title">논문 관리</div>
+          <div class="step-subtitle">저장된 재현 결과</div>
+        </div>
+      </div>
+
+  <div class="nav-bottom">
+    <div class="progress-track">
+      <div class="progress-fill" id="nav-progress"></div>
+    </div>
+    <div class="progress-label">
+      <span id="progress-label">Step 1 of 6</span>
+      <span id="progress-pct">0%</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ── MAIN ── -->
+<main id="main">
+  <div class="main-inner">
+
+    <!-- ─── SCREEN 1: UPLOAD ─── -->
+    <div class="step-screen active" id="screen-1">
+      <div class="step-header">
+        <div class="step-tag">Step 01 — Input</div>
+        <div class="step-title-h1">파일을 업로드하세요</div>
+        <div class="step-desc">논문 PDF와 분자 데이터(CSV/Excel)를 함께 업로드하면 자동으로 컬럼을 인식합니다.</div>
+      </div>
+
+      <div class="info-banner" id="banner-1">
+        <div class="info-banner-icon">💡</div>
+        <div class="info-banner-text">
+          <strong>지원 형식:</strong> PDF(논문), CSV/Excel(분자 데이터). 데이터에는 <strong>SMILES</strong> 컬럼과 수치형 타겟 컬럼이 있어야 합니다.
+        </div>
+      </div>
+
+      <div class="upload-grid">
+        <label for="pdf-input">
+          <div class="upload-zone" id="pdf-zone">
+            <div class="upload-default">
+              <span class="upload-icon">📄</span>
+              <div class="upload-title">논문 PDF</div>
+              <div class="upload-hint">클릭하거나 드래그하세요<br>.pdf 형식</div>
+            </div>
+            <div class="upload-file-info">
+              <span>✓</span><span id="pdf-name"></span>
+            </div>
+          </div>
+        </label>
+        <input type="file" id="pdf-input" accept=".pdf" onchange="handleFile('pdf', this)">
+
+        <label for="data-input">
+          <div class="upload-zone" id="data-zone">
+            <div class="upload-default">
+              <span class="upload-icon">📊</span>
+              <div class="upload-title">분자 데이터</div>
+              <div class="upload-hint">클릭하거나 드래그하세요<br>.csv / .xlsx / .xls</div>
+            </div>
+            <div class="upload-file-info">
+              <span>✓</span><span id="data-name"></span>
+            </div>
+          </div>
+        </label>
+        <input type="file" id="data-input" accept=".csv,.xlsx,.xls" onchange="handleFile('data', this)">
+      </div>
+
+      <div class="btn-row">
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="upload-btn" onclick="uploadFiles()" disabled>
+          업로드 + 자동 인식
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── SCREEN 3: PAPER PARSING ─── -->
+    <div class="step-screen" id="screen-3">
+      <div class="step-header">
+        <div class="step-tag">Step 03 — Paper Parsing</div>
+        <div class="step-title-h1">논문 파싱</div>
+        <div class="step-desc">PDF를 구조화된 Markdown으로 변환합니다. 같은 논문은 캐시를 재사용합니다.</div>
+      </div>
+
+      <div class="info-banner" id="banner-3">
+        <div class="info-banner-icon">💡</div>
+        <div class="info-banner-text">파싱 버튼을 눌러 논문을 Markdown으로 변환하세요. 이전에 처리한 논문은 캐시에서 즉시 로드됩니다.</div>
+      </div>
+
+      <!-- 파싱 실행 전: 정보 카드 -->
+      <div class="card" id="parse-ready-card">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--amber-dim);color:var(--amber)">📄</div>
+          파싱 대상 논문
+        </div>
+        <div class="parse-meta-row" id="parse-meta-before">
+          <span class="parse-meta-chip accent" id="chip-pdf-name">—</span>
+          <span class="parse-meta-chip" id="chip-pdf-hash">hash: —</span>
+        </div>
+        <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.6">
+          pypdf로 본문을 추출하고, references / acknowledgements / appendix 등 불필요 섹션을 제거한 뒤 논문 구조를 유지한 Markdown을 생성합니다.
+        </div>
+      </div>
+
+      <!-- 파싱 결과 (파싱 후 표시) -->
+      <div id="parse-result-area" style="display:none">
+        <div class="parse-status-bar done" id="parse-status-bar">
+          <span>✓</span>
+          <span id="parse-status-text">파싱 완료</span>
+          <span class="cache-badge" id="cache-badge" style="display:none">♻ 캐시 재사용</span>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <div class="card-title-icon" style="background:var(--green-dim);color:var(--green)">≡</div>
+            Markdown 미리보기
+            <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+              <span class="parse-meta-chip green" id="chip-char-count"></span>
+              <button class="reasoning-toggle" style="margin:0" onclick="toggleFullMarkdown()">
+                <span id="md-toggle-arrow">▶</span> 전체 보기
+              </button>
+            </span>
+          </div>
+          <!-- 요약 미리보기 (항상 표시) -->
+          <div class="markdown-rendered" id="markdown-summary"></div>
+          <!-- 전체 raw (토글) -->
+          <div class="markdown-preview-box reasoning-box" id="markdown-full" style="margin-top:12px;max-height:320px"></div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="tryGoStep(2)">← 이전</button>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="parse-btn" onclick="parsePaper()">
+          PDF 파싱 실행
+        </button>
+        <button class="btn btn-primary" id="parse-next-btn" style="display:none" onclick="tryGoStep(4)">
+          다음 단계 →
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── SCREEN 4: RAG EXTRACTION ─── -->
+    <div class="step-screen" id="screen-4">
+      <div class="step-header">
+        <div class="step-tag">Step 04 — RAG Extraction</div>
+        <div class="step-title-h1">RAG 추출</div>
+        <div class="step-desc">논문 벡터 DB를 구축하고, 5개 주제로 방법론(피처·모델·하이퍼파라미터)을 자동으로 추출합니다.</div>
+      </div>
+
+      <div class="info-banner" id="banner-4">
+        <div class="info-banner-icon">💡</div>
+        <div class="info-banner-text">RAG 실행 버튼을 눌러 논문에서 실험 방법론을 추출하세요. 논문 파싱 결과를 바탕으로 structured spec을 생성합니다.</div>
+      </div>
+
+      <!-- 실행 전: 요약 카드 -->
+      <div class="card" id="rag-ready-card">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--purple-dim);color:var(--purple)">⬡</div>
+          추출 준비
+        </div>
+        <div class="rag-info-grid">
+          <div class="rag-info-card">
+            <div class="rag-info-card-label">논문</div>
+            <div class="rag-info-card-value" id="rag-pdf-name">—</div>
+            <div class="rag-info-card-sub" id="rag-pdf-hash">hash: —</div>
+          </div>
+          <div class="rag-info-card">
+            <div class="rag-info-card-label">top-k 검색 수</div>
+            <div class="rag-info-card-value">5</div>
+            <div class="rag-info-card-sub">5개 주제 × top-5 청크</div>
+          </div>
+        </div>
+        <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.6">
+          Preprocessing · Feature · Model · Hyperparameters · Training · Metrics 등 6개 주제에 대해 멀티-쿼리 RAG를 실행하고 structured spec JSON을 생성합니다.
+        </div>
+      </div>
+
+      <!-- 추출 결과 -->
+      <div id="rag-result-area" style="display:none">
+
+        <!-- 동적으로 생성되는 RAG 결과 카드들 -->
+        <div id="rag-dynamic-content"></div>
+
+        <!-- Structured Spec JSON -->
+        <div class="card">
+          <div class="card-title">
+            <div class="card-title-icon" style="background:var(--amber-dim);color:var(--amber)">{ }</div>
+            Paper Method Spec
+            <span style="margin-left:auto">
+              <button class="reasoning-toggle" style="margin:0" onclick="toggleSpecJson()">
+                <span id="spec-toggle-arrow">▶</span> JSON 전체 보기
+              </button>
+            </span>
+          </div>
+          <div class="spec-json-box" id="spec-json-box"></div>
+        </div>
+
+      </div><!-- /rag-result-area -->
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="tryGoStep(3)">← 이전</button>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="rag-btn" onclick="runRag()">
+          RAG 실행
+        </button>
+        <button class="btn btn-primary" id="rag-next-btn" style="display:none" onclick="tryGoStep(5)">
+          다음 단계 →
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── SCREEN 5: CODE GENERATION ─── -->
+    <div class="step-screen" id="screen-5">
+      <div class="step-header">
+        <div class="step-tag">Step 05 — Code Generation</div>
+        <div class="step-title-h1">코드 생성 · 실행</div>
+        <div class="step-desc">추출된 spec으로 Python 회귀 스크립트를 생성하고, 최대 4회 디버그 루프를 수행합니다.</div>
+      </div>
+
+      <div class="info-banner" id="banner-5">
+        <div class="info-banner-icon">💡</div>
+        <div class="info-banner-text">코드 생성 버튼을 누르면 LLM이 논문 스펙을 Python 코드로 변환하고 실행합니다. 오류 발생 시 자동으로 디버그를 시도합니다.</div>
+      </div>
+
+      <div class="card" id="gen-ready-card">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:rgba(34,211,238,0.1);color:var(--cyan)">⚙</div>
+          생성 컨텍스트
+        </div>
+        <div class="rag-info-grid">
+          <div class="rag-info-card">
+            <div class="rag-info-card-label">모델</div>
+            <div class="rag-info-card-value" id="gen-ctx-model">—</div>
+            <div class="rag-info-card-sub" id="gen-ctx-model-sub">—</div>
+          </div>
+          <div class="rag-info-card">
+            <div class="rag-info-card-label">피처 방법</div>
+            <div class="rag-info-card-value" id="gen-ctx-feature">—</div>
+            <div class="rag-info-card-sub" id="gen-ctx-feature-sub">—</div>
+          </div>
+          <div class="rag-info-card">
+            <div class="rag-info-card-label">데이터셋</div>
+            <div class="rag-info-card-value" id="gen-ctx-data">—</div>
+            <div class="rag-info-card-sub" id="gen-ctx-data-sub">—</div>
+          </div>
+          <div class="rag-info-card">
+            <div class="rag-info-card-label">최대 디버그</div>
+            <div class="rag-info-card-value">4회</div>
+            <div class="rag-info-card-sub">generate → run → debug</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="gen-result-area" style="display:none">
+        <div class="card">
+          <div class="card-title">
+            <div class="card-title-icon" style="background:var(--green-dim);color:var(--green)">◎</div>
+            실행 이력
+            <span style="margin-left:auto" id="gen-iter-badge-wrap"></span>
+          </div>
+          <div class="iter-timeline" id="gen-iter-timeline"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <div class="card-title-icon" style="background:var(--accent-dim);color:var(--accent)">{ }</div>
+            생성된 코드
+            <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+              <span class="parse-meta-chip" id="gen-code-path-chip"></span>
+              <button class="reasoning-toggle" style="margin:0" onclick="toggleGenCode()">
+                <span id="gen-code-arrow">▶</span> 코드 보기
+              </button>
+            </span>
+          </div>
+          <pre class="gen-code-block reasoning-box" id="gen-code-block"></pre>
+        </div>
+
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="tryGoStep(4)">← 이전</button>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="gen-btn" onclick="generateCode()">코드 생성 + 실행</button>
+        <button class="btn btn-primary" id="gen-next-btn" style="display:none" onclick="tryGoStep(6)">실행 결과 보기 →</button>
+      </div>
+    </div>
+
+    <!-- ─── SCREEN 6: RESULTS ─── -->
+    <div class="step-screen" id="screen-6">
+      <div class="step-header">
+        <div class="step-tag">Step 06 — Results</div>
+        <div class="step-title-h1">실행 결과</div>
+        <div class="step-desc">재현된 지표와 논문 보고값을 비교합니다.</div>
+      </div>
+
+      <div class="info-banner" id="banner-6">
+        <div class="info-banner-icon">💡</div>
+        <div class="info-banner-text">코드 생성 단계 완료 후 결과가 표시됩니다.</div>
+      </div>
+
+      <div class="exec-status-bar" id="exec-status-bar" style="display:none"></div>
+
+      <!-- 가정 사항 카드 -->
+      <div class="card" id="assumptions-card" style="display:none">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--amber-dim);color:var(--amber)">!</div>
+          가정 사항 (Assumptions)
+        </div>
+        <div id="assumptions-box"></div>
+      </div>
+
+      <div class="card" id="metrics-compare-card" style="display:none">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--green-dim);color:var(--green)">≡</div>
+          지표 비교
+          <span class="parse-meta-chip" style="margin-left:auto">논문 보고값 vs 재현값</span>
+        </div>
+        <div class="table-wrap" style="margin-bottom:0">
+          <table class="metrics-compare-table">
+            <thead>
+              <tr>
+                <th style="text-align:left">지표</th>
+                <th>논문 보고값</th>
+                <th>재현값</th>
+                <th>차이</th>
+              </tr>
+            </thead>
+            <tbody id="metrics-compare-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 예측 vs 실측 Scatter Plot -->
+      <div class="card" id="scatter-card" style="display:none">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--accent-dim);color:var(--accent)">◎</div>
+          Actual vs Predicted Scatter Plot
+          <span style="margin-left:auto;font-size:0.68rem;font-weight:400;color:var(--text-muted)" id="scatter-count-label"></span>
+        </div>
+        <div class="scatter-wrap" id="scatter-container"></div>
+      </div>
+
+      <!-- 재현 분석 요약 -->
+      <div class="card" id="analysis-summary-card" style="display:none">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--purple-dim);color:var(--purple)">≡</div>
+          재현 분석 요약
+        </div>
+        <div id="analysis-summary-body"></div>
+      </div>
+
+      <div class="card" id="stdout-card" style="display:none">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--accent-dim);color:var(--accent)">▶</div>
+          실행 로그 (stdout)
+          <span style="margin-left:auto">
+            <button class="reasoning-toggle" style="margin:0" onclick="toggleLog('stdout')">
+              <span id="stdout-arrow">▶</span> 로그 보기
+            </button>
+          </span>
+        </div>
+        <pre class="gen-code-block reasoning-box" id="log-stdout"></pre>
+      </div>
+
+      <div class="card" id="stderr-card" style="display:none">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--red-dim);color:var(--red)">⚠</div>
+          오류 로그 (stderr)
+          <span style="margin-left:auto">
+            <button class="reasoning-toggle" style="margin:0" onclick="toggleLog('stderr')">
+              <span id="stderr-arrow">▶</span> 로그 보기
+            </button>
+          </span>
+        </div>
+        <pre class="gen-code-block reasoning-box" id="log-stderr"></pre>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="tryGoStep(5)">← 이전</button>
+        <button class="btn btn-secondary" id="save-result-btn" onclick="saveResult()" disabled style="opacity:0.5">
+          &#128190; 결과 저장
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── SCREEN 2: COLUMN INSPECTION ─── -->
+    <div class="step-screen" id="screen-2">
+      <div class="step-header">
+        <div class="step-tag">Step 02 — Data Inspection</div>
+        <div class="step-title-h1">데이터 확인 및 컬럼 지정</div>
+        <div class="step-desc">자동 인식된 SMILES · 타겟 컬럼을 확인하고, 필요하면 수정한 뒤 확정하세요.</div>
+      </div>
+
+      <div class="info-banner success" id="banner-2">
+        <div class="info-banner-icon">✓</div>
+        <div class="info-banner-text"><strong>자동 인식 완료</strong> — 컬럼을 검토하고 확정하세요.</div>
+      </div>
+
+      <!-- 자동 인식 결과 요약 -->
+      <div class="card">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--accent-dim);color:var(--accent)">⬡</div>
+          자동 인식 결과
+        </div>
+        <div class="col-detect-grid">
+          <div class="col-detect-card">
+            <div class="col-detect-label">SMILES 컬럼</div>
+            <div class="col-detect-value" id="detected-smiles">—</div>
+            <span class="confidence-badge" id="badge-smiles-conf">—</span>
+          </div>
+          <div class="col-detect-card">
+            <div class="col-detect-label">타겟 컬럼</div>
+            <div class="col-detect-value" id="detected-target">—</div>
+            <span class="confidence-badge" id="badge-target-conf">—</span>
+          </div>
+        </div>
+
+        <!-- 시트 선택 (Excel 전용) -->
+        <div class="sheet-selector-wrap" id="sheet-wrap" style="display:none">
+          <span class="sheet-selector-label">시트 선택</span>
+          <select id="sheet-select" onchange="changeSheet()"></select>
+        </div>
+
+        <!-- 컬럼 직접 선택 -->
+        <div class="col-selector-row">
+          <div class="col-selector-wrap">
+            <div class="col-selector-label">
+              <span class="role-dot smiles"></span>SMILES 컬럼 지정
+            </div>
+            <select id="smiles-select"></select>
+          </div>
+          <div class="col-selector-wrap">
+            <div class="col-selector-label">
+              <span class="role-dot target"></span>타겟 컬럼 지정
+            </div>
+            <select id="target-select"></select>
+          </div>
+        </div>
+
+        <!-- LLM 추론 근거 -->
+        <button class="reasoning-toggle" onclick="toggleReasoning()">
+          <span id="reasoning-arrow">▶</span> LLM 인식 근거 보기
+        </button>
+        <div class="reasoning-box" id="reasoning-box"></div>
+      </div>
+
+      <!-- 통계 -->
+      <div class="stats-row">
+        <div class="stat-chip">
+          <div class="stat-chip-label">총 행 수</div>
+          <div class="stat-chip-value" id="stat-rows">—</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-label">컬럼 수</div>
+          <div class="stat-chip-value" id="stat-cols">—</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-label">시트</div>
+          <div class="stat-chip-value" id="stat-sheet">—</div>
+        </div>
+      </div>
+
+      <!-- 데이터 미리보기 -->
+      <div class="card">
+        <div class="card-title">
+          <div class="card-title-icon" style="background:var(--purple-dim);color:var(--purple)">≡</div>
+          데이터 미리보기
+          <span style="margin-left:auto;font-size:0.68rem;font-weight:400;color:var(--text-muted)" id="preview-count"></span>
+        </div>
+        <div class="table-wrap">
+          <table id="preview-table"></table>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="tryGoStep(1)">← 이전</button>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="confirm-btn" onclick="confirmColumns()">
+          컬럼 확정 후 다음 단계 →
+        </button>
+      </div>
+    </div>
+
+
+    <!-- ─── SCREEN LIB: LIBRARY ─── -->
+    <div id="screen-lib">
+      <div class="step-header">
+        <div class="step-tag">Library</div>
+        <div class="step-title-h1">재현 논문 라이브러리</div>
+        <div class="step-desc">저장된 재현 실험 결과를 관리하고 논문 간 성능을 비교합니다.</div>
+      </div>
+
+      <div class="lib-header-row">
+        <div class="lib-filter-chips">
+          <div class="lib-chip active" data-filter="all"     onclick="setLibFilter('all')">전체</div>
+          <div class="lib-chip"        data-filter="good"    onclick="setLibFilter('good')">재현 성공</div>
+          <div class="lib-chip"        data-filter="partial" onclick="setLibFilter('partial')">부분 재현</div>
+          <div class="lib-chip"        data-filter="failed"  onclick="setLibFilter('failed')">실패</div>
+        </div>
+        <input class="lib-search" type="text" id="lib-search" placeholder="논문명 검색…" oninput="renderLibCards()">
+      </div>
+
+      <div id="lib-card-list" class="lib-card-list"></div>
+
+      <div class="lib-compare-panel" id="lib-compare-panel">
+        <div class="lib-compare-header">
+          <div class="lib-compare-title">&#128202; 비교 리포트</div>
+          <button class="btn btn-secondary" style="padding:5px 14px;font-size:0.72rem" onclick="closeComparePanel()">닫기</button>
+        </div>
+        <div class="table-wrap" style="margin-bottom:0">
+          <table>
+            <thead>
+              <tr>
+                <th>논문</th>
+                <th>모델</th>
+                <th>데이터셋</th>
+                <th class="sortable" data-col="paper_mae"  onclick="sortCompare('paper_mae')">논문 MAE</th>
+                <th class="sortable" data-col="repro_mae"  onclick="sortCompare('repro_mae')">재현 MAE</th>
+                <th>MAE 오차%</th>
+                <th class="sortable" data-col="paper_r2"   onclick="sortCompare('paper_r2')">논문 R²</th>
+                <th class="sortable" data-col="repro_r2"   onclick="sortCompare('repro_r2')">재현 R²</th>
+                <th>R² 오차%</th>
+                <th>재현 상태</th>
+              </tr>
+            </thead>
+            <tbody id="compare-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+    <div class="lib-select-bar" id="lib-select-bar">
+      <span class="lib-select-count" id="lib-select-count">0편 선택됨</span>
+      <div style="flex:1"></div>
+      <button class="btn btn-secondary" onclick="clearLibSelection()">선택 해제</button>
+      <button class="btn btn-primary"   onclick="buildCompareReport()">비교 리포트 생성</button>
+    </div>
+</main>
+
+<!-- ── RIGHT PANEL ── -->
+<aside id="panel">
+  <div class="panel-header">처리 상태</div>
+  <div class="panel-body">
+
+    <div class="panel-section">
+      <div class="panel-section-title">파이프라인</div>
+      <div class="status-item">
+        <div class="status-dot info" id="dot-upload"></div>
+        <div class="status-text"><strong>파일 업로드</strong><br><span id="status-upload">대기 중</span></div>
+      </div>
+      <div class="status-item">
+        <div class="status-dot idle" id="dot-columns"></div>
+        <div class="status-text"><strong>컬럼 인식</strong><br><span id="status-columns">대기 중</span></div>
+      </div>
+      <div class="status-item">
+        <div class="status-dot idle" id="dot-parse"></div>
+        <div class="status-text"><strong>논문 파싱</strong><br><span id="status-parse">대기 중</span></div>
+      </div>
+      <div class="status-item">
+        <div class="status-dot idle" id="dot-rag"></div>
+        <div class="status-text"><strong>RAG 추출</strong><br><span id="status-rag">대기 중</span></div>
+      </div>
+      <div class="status-item">
+        <div class="status-dot idle" id="dot-gen"></div>
+        <div class="status-text"><strong>코드 생성 · 실행</strong><br><span id="status-gen">대기 중</span></div>
+      </div>
+    </div>
+
+    <div class="panel-section" id="session-section" style="display:none">
+      <div class="panel-section-title">세션 정보</div>
+      <div class="session-kv">
+        <div class="session-kv-row">
+          <span class="session-kv-label">ID</span>
+          <span class="session-kv-value" id="kv-session">-</span>
+        </div>
+        <div class="session-kv-row">
+          <span class="session-kv-label">PDF</span>
+          <span class="session-kv-value" id="kv-pdf">-</span>
+        </div>
+        <div class="session-kv-row">
+          <span class="session-kv-label">Data</span>
+          <span class="session-kv-value" id="kv-data">-</span>
+        </div>
+        <div class="session-kv-row" id="kv-smiles-row" style="display:none">
+          <span class="session-kv-label">SMILES</span>
+          <span class="session-kv-value" id="kv-smiles">-</span>
+        </div>
+        <div class="session-kv-row" id="kv-target-row" style="display:none">
+          <span class="session-kv-label">Target</span>
+          <span class="session-kv-value" id="kv-target">-</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</aside>
+
+</div><!-- /app -->
+
+<script>
+// ── STATE ─────────────────────────────────────────────────
+let pdfReady  = false;
+let dataReady = false;
+let sessionData = null;
+let currentStep = 1;
+let maxStep = 1;
+let loopResult  = null;
+
+const CRUMBS = { 1: '파일 업로드', 2: '데이터 확인', 3: '논문 파싱', 4: 'RAG 추출', 5: '코드 생성', 6: '실행 결과' };
+
+function esc(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── STEP NAVIGATION ───────────────────────────────────────
+function tryGoStep(n) {
+  if (libMode) exitLibrary();
+  if (n > maxStep) return;
+  goStep(n);
+}
+
+function goStep(n) {
+  // hide all screens
+  document.querySelectorAll('.step-screen').forEach(el => el.classList.remove('active'));
+  document.getElementById(`screen-${n}`)?.classList.add('active');
+
+  // update nav items
+  for (let i = 1; i <= 6; i++) {
+    const nav = document.getElementById(`nav-${i}`);
+    if (!nav) continue;
+    nav.classList.remove('active', 'locked');
+    if (i > maxStep) {
+      nav.classList.add('locked');
+    } else if (i === n) {
+      nav.classList.add('active');
+    }
+  }
+
+  currentStep = n;
+  document.getElementById('header-crumb').textContent = CRUMBS[n] || '';
+  document.getElementById('progress-label').textContent = `Step ${n} of 6`;
+}
+
+function markDone(stepNum) {
+  const nav  = document.getElementById(`nav-${stepNum}`);
+  const num  = document.getElementById(`num-${stepNum}`);
+  const conn = document.getElementById(`conn-${stepNum}`);
+
+  if (nav) { nav.classList.remove('active', 'locked'); nav.classList.add('done'); }
+  if (num) num.textContent = '✓';
+  if (conn) conn.classList.add('done-line');
+
+  const pct = Math.round(stepNum / 6 * 100);
+  document.getElementById('nav-progress').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+}
+
+function unlockStep(n) {
+  if (n > maxStep) {
+    maxStep = n;
+    const nav = document.getElementById(`nav-${n}`);
+    if (nav) nav.classList.remove('locked');
+  }
+}
+
+// ── STEP 1: FILE HANDLING ─────────────────────────────────
+function handleFile(type, input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  if (type === 'pdf') {
+    document.getElementById('pdf-zone').classList.add('filled');
+    document.getElementById('pdf-name').textContent = file.name;
+    pdfReady = true;
+  } else {
+    document.getElementById('data-zone').classList.add('filled');
+    document.getElementById('data-name').textContent = file.name;
+    dataReady = true;
+  }
+
+  document.getElementById('upload-btn').disabled = !(pdfReady && dataReady);
+}
+
+async function uploadFiles() {
+  const pdfFile  = document.getElementById('pdf-input').files[0];
+  const dataFile = document.getElementById('data-input').files[0];
+
+  setBanner(1, 'info', '파일을 업로드하고 컬럼 자동 인식 중…');
+  setStatus('upload', 'info', '업로드 중…');
+  const btn = document.getElementById('upload-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> 처리 중…';
+
+  const form = new FormData();
+  form.append('pdf_file',  pdfFile);
+  form.append('data_file', dataFile);
+
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: form });
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.detail || '업로드 실패');
+
+    sessionData = payload.session;
+    const reusedExistingUpload = !!payload.duplicate_upload;
+
+    // 패널 세션 정보
+    document.getElementById('session-section').style.display = '';
+    document.getElementById('kv-session').textContent = (sessionData.session_id || '').slice(0, 12) + '…';
+    document.getElementById('kv-pdf').textContent  = sessionData.pdf_name  || '-';
+    document.getElementById('kv-data').textContent = sessionData.data_name || '-';
+
+    setStatus('upload',  'ok', reusedExistingUpload ? '기존 업로드 재사용' : '완료');
+    setStatus('columns', 'ok', '자동 인식 완료');
+    if (reusedExistingUpload) {
+      setBanner(1, 'info', '<strong>동일한 파일이 이미 업로드되어</strong> 기존 세션을 재사용했습니다.');
+    }
+
+    // Step 1 완료 → Step 2 진입
+    markDone(1);
+    unlockStep(2);
+    renderStep2(sessionData);
+    goStep(2);
+
+  } catch (err) {
+    setBanner(1, 'error', `오류: <strong>${esc(err.message)}</strong>`);
+    setStatus('upload', 'error', '실패');
+    btn.innerHTML = '업로드 + 자동 인식';
+    btn.disabled = false;
+  }
+}
+
+// ── STEP 2: RENDER ────────────────────────────────────────
+function renderStep2(session) {
+  const detection = session.column_detection || {};
+  const columns   = session.data_columns || [];
+
+  // 자동 인식 결과 배지
+  document.getElementById('detected-smiles').textContent = detection.smiles_column || '미탐지';
+  document.getElementById('detected-target').textContent = detection.target_column || '미탐지';
+
+  setConfidenceBadge('badge-smiles-conf', detection.smiles_confidence);
+  setConfidenceBadge('badge-target-conf', detection.target_confidence);
+
+  // 컬럼 드롭다운
+  const smilesSelect = document.getElementById('smiles-select');
+  const targetSelect = document.getElementById('target-select');
+  const opts = columns.map(col => `<option value="${esc(col)}">${esc(col)}</option>`).join('');
+  smilesSelect.innerHTML = opts;
+  targetSelect.innerHTML = opts;
+  smilesSelect.value = session.smiles_column || columns[0] || '';
+  targetSelect.value = session.target_column || columns[0] || '';
+
+  // 시트 선택 (Excel)
+  const sheets = session.available_sheets || [];
+  const sheetWrap = document.getElementById('sheet-wrap');
+  if (sheets.length > 1) {
+    const sheetSelect = document.getElementById('sheet-select');
+    sheetSelect.innerHTML = sheets.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+    sheetSelect.value = session.data_sheet_name || sheets[0];
+    sheetWrap.style.display = 'flex';
+  } else {
+    sheetWrap.style.display = 'none';
+  }
+
+  // 통계
+  document.getElementById('stat-rows').textContent  = (session.num_rows  ?? '—').toLocaleString();
+  document.getElementById('stat-cols').textContent  = session.num_columns ?? '—';
+  document.getElementById('stat-sheet').textContent = session.data_sheet_name || 'CSV';
+
+  // LLM 근거
+  const reasoning = detection.reasoning || {};
+  const reasoningText = [
+    reasoning.smiles ? `[SMILES]\n${reasoning.smiles}` : '',
+    reasoning.target ? `[Target]\n${reasoning.target}` : '',
+    detection.error  ? `[Error]\n${detection.error}`   : '',
+  ].filter(Boolean).join('\n\n');
+  document.getElementById('reasoning-box').textContent = reasoningText || '근거 정보 없음';
+
+  // 미리보기 테이블
+  renderPreviewTable(session.data_preview || [], columns, session.smiles_column, session.target_column);
+
+  // 배너
+  setBanner(2, 'success', `<strong>자동 인식 완료</strong> — SMILES: <strong>${esc(detection.smiles_column || '미탐지')}</strong>, Target: <strong>${esc(detection.target_column || '미탐지')}</strong>. 확인 후 확정하세요.`);
+}
+
+function setConfidenceBadge(id, conf) {
+  const el = document.getElementById(id);
+  const level = (conf || 'low').toLowerCase();
+  const map = { high: ['high', '신뢰 높음'], medium: ['medium', '신뢰 보통'], low: ['low', '신뢰 낮음'] };
+  const [cls, label] = map[level] || map.low;
+  el.className = `confidence-badge ${cls}`;
+  el.textContent = label;
+}
+
+function renderPreviewTable(rows, allColumns, smilesCol, targetCol) {
+  if (!rows.length) {
+    document.getElementById('preview-table').innerHTML = '<tbody><tr><td colspan="99" style="color:var(--text-muted);padding:16px">미리보기 데이터 없음</td></tr></tbody>';
+    return;
+  }
+
+  const headers = Object.keys(rows[0]);
+
+  const thead = `<thead><tr>${headers.map(h => {
+    const cls = h === smilesCol ? ' class="col-smiles"' : h === targetCol ? ' class="col-target"' : '';
+    return `<th${cls}>${esc(h)}</th>`;
+  }).join('')}</tr></thead>`;
+
+  const tbody = `<tbody>${rows.map(row =>
+    `<tr>${headers.map(h => {
+      const cls = h === smilesCol ? ' class="col-smiles"' : h === targetCol ? ' class="col-target"' : '';
+      return `<td${cls}>${esc(row[h] ?? '')}</td>`;
+    }).join('')}</tr>`
+  ).join('')}</tbody>`;
+
+  document.getElementById('preview-table').innerHTML = thead + tbody;
+  document.getElementById('preview-count').textContent = `상위 ${rows.length}행`;
+}
+
+function toggleReasoning() {
+  const box   = document.getElementById('reasoning-box');
+  const arrow = document.getElementById('reasoning-arrow');
+  const open  = box.classList.toggle('open');
+  arrow.textContent = open ? '▼' : '▶';
+}
+
+// ── STEP 2: SHEET CHANGE ──────────────────────────────────
+async function changeSheet() {
+  if (!sessionData) return;
+  const sheetName = document.getElementById('sheet-select').value;
+
+  try {
+    const res = await fetch('/api/select-sheet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionData.session_id, sheet_name: sheetName })
+    });
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.detail || '시트 변경 실패');
+
+    sessionData = payload.session;
+    renderStep2(sessionData);
+  } catch (err) {
+    setBanner(2, 'error', `시트 변경 오류: <strong>${esc(err.message)}</strong>`);
+  }
+}
+
+// ── STEP 2: CONFIRM ───────────────────────────────────────
+async function confirmColumns() {
+  if (!sessionData) return;
+
+  const smilesCol = document.getElementById('smiles-select').value;
+  const targetCol = document.getElementById('target-select').value;
+
+  if (smilesCol === targetCol) {
+    setBanner(2, 'error', '<strong>오류:</strong> SMILES 컬럼과 타겟 컬럼이 같습니다. 다른 컬럼을 선택하세요.');
+    return;
+  }
+
+  const btn = document.getElementById('confirm-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> 처리 중…';
+
+  try {
+    const res = await fetch('/api/confirm-columns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id:    sessionData.session_id,
+        smiles_column: smilesCol,
+        target_column: targetCol,
+      })
+    });
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.detail || '확정 실패');
+
+    sessionData = payload.session;
+
+    // 패널 업데이트
+    document.getElementById('kv-smiles-row').style.display = '';
+    document.getElementById('kv-target-row').style.display = '';
+    document.getElementById('kv-smiles').textContent = smilesCol;
+    document.getElementById('kv-target').textContent = targetCol;
+
+    setStatus('columns', 'ok', `${smilesCol} → ${targetCol}`);
+
+    markDone(2);
+    setBanner(2, 'success', `<strong>컬럼 확정 완료</strong> — SMILES: <strong>${esc(smilesCol)}</strong>, Target: <strong>${esc(targetCol)}</strong>`);
+
+    btn.innerHTML = '컬럼 확정 후 다음 단계 →';
+    btn.disabled = true;
+
+    // Step 3 진입
+    unlockStep(3);
+    initStep3();
+    goStep(3);
+
+  } catch (err) {
+    setBanner(2, 'error', `오류: <strong>${esc(err.message)}</strong>`);
+    btn.innerHTML = '컬럼 확정 후 다음 단계 →';
+    btn.disabled = false;
+  }
+}
+
+// ── STEP 3: PAPER PARSING ────────────────────────────────
+function initStep3() {
+  if (!sessionData) return;
+  document.getElementById('chip-pdf-name').textContent = sessionData.pdf_name || '—';
+  document.getElementById('chip-pdf-hash').textContent = 'hash: ' + (sessionData.pdf_hash || '—').slice(0, 12) + '…';
+}
+
+async function parsePaper() {
+  if (!sessionData) return;
+
+  const btn = document.getElementById('parse-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> 파싱 중…';
+  setBanner(3, 'info', '논문 PDF를 Markdown으로 변환하고 있습니다…');
+  setStatus('parse', 'info', '파싱 중…');
+
+  try {
+    const res = await fetch('/api/parse-paper', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionData.session_id }),
+    });
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.detail || '파싱 실패');
+
+    const result = payload.result || {};
+    const markdown = result.markdown || '';
+    sessionData.paper_markdown = markdown;
+
+    renderParseResult(markdown, result.cached === true);
+
+    setStatus('parse', 'ok', result.cached ? '캐시 재사용' : '파싱 완료');
+    markDone(3);
+    unlockStep(4);
+    initStep4();
+
+    btn.style.display = 'none';
+    document.getElementById('parse-next-btn').style.display = '';
+
+  } catch (err) {
+    setBanner(3, 'error', `오류: <strong>${esc(err.message)}</strong>`);
+    setStatus('parse', 'error', '파싱 실패');
+    btn.disabled = false;
+    btn.innerHTML = 'PDF 파싱 재시도';
+  }
+}
+
+function renderParseResult(markdown, cached) {
+  // 상태바
+  const statusBar  = document.getElementById('parse-status-bar');
+  const statusText = document.getElementById('parse-status-text');
+  const cacheBadge = document.getElementById('cache-badge');
+
+  statusText.textContent = cached ? '캐시에서 로드 완료' : '파싱 완료';
+  if (cached) cacheBadge.style.display = '';
+
+  // 글자 수 칩
+  const chars = markdown.length;
+  document.getElementById('chip-char-count').textContent =
+    chars >= 1000 ? `${(chars / 1000).toFixed(1)}k 자` : `${chars} 자`;
+
+  // 요약 미리보기: markdown → 간단 HTML 렌더링 (상위 60줄)
+  const previewLines = markdown.split('\n').slice(0, 60).join('\n');
+  document.getElementById('markdown-summary').innerHTML = simpleMarkdown(previewLines);
+
+  // 전체 raw
+  document.getElementById('markdown-full').textContent = markdown;
+
+  // 배너 + 영역 표시
+  setBanner(3, 'success',
+    cached
+      ? `<strong>캐시 재사용</strong> — 이전에 파싱한 결과를 불러왔습니다. (${(chars/1000).toFixed(1)}k 자)`
+      : `<strong>파싱 완료</strong> — ${(chars/1000).toFixed(1)}k 자의 Markdown이 생성되었습니다.`
+  );
+  document.getElementById('parse-ready-card').style.display = 'none';
+  document.getElementById('parse-result-area').style.display = '';
+}
+
+/** Markdown → HTML 변환 (헤더, 볼드, 코드, 단락, 테이블) */
+function simpleMarkdown(text) {
+  const escaped = text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  function applyInline(s) {
+    return s
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>');
+  }
+
+  function parseRow(line) {
+    return line.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+  }
+
+  function isSepRow(line) {
+    return /^\|[\s\-:|]+\|$/.test(line.trim());
+  }
+
+  function flushTable(buf) {
+    if (!buf.length) return '';
+    const sepIdx = buf.findIndex(r => isSepRow(r));
+    if (sepIdx < 1) {
+      return buf.map(r => `<p>${applyInline(r)}</p>`).join('');
+    }
+    const headers = parseRow(buf[0]);
+    const bodyRows = buf.slice(sepIdx + 1);
+    let tbl = '<div class="md-table-wrap"><table class="md-table"><thead><tr>';
+    tbl += headers.map(h => `<th>${applyInline(h)}</th>`).join('');
+    tbl += '</tr></thead><tbody>';
+    for (const row of bodyRows) {
+      const cols = parseRow(row);
+      tbl += '<tr>' + cols.map(c => `<td>${applyInline(c)}</td>`).join('') + '</tr>';
+    }
+    tbl += '</tbody></table></div>';
+    return tbl;
+  }
+
+  const lines  = escaped.split('\n');
+  const output = [];
+  let tableBuf = [];
+
+  for (const line of lines) {
+    const t = line.trim();
+    if (t.startsWith('|')) { tableBuf.push(t); continue; }
+    if (tableBuf.length)   { output.push(flushTable(tableBuf)); tableBuf = []; }
+
+    if (!t)                      { output.push('<br>'); }
+    else if (t.startsWith('### ')) { output.push(`<h3>${applyInline(t.slice(4))}</h3>`); }
+    else if (t.startsWith('## '))  { output.push(`<h2>${applyInline(t.slice(3))}</h2>`); }
+    else if (t.startsWith('# '))   { output.push(`<h1>${applyInline(t.slice(2))}</h1>`); }
+    else                           { output.push(`<p>${applyInline(t)}</p>`); }
+  }
+  if (tableBuf.length) output.push(flushTable(tableBuf));
+  return output.join('') || '<em style="color:var(--text-muted)">내용 없음</em>';
+}
+
+function toggleFullMarkdown() {
+  const box   = document.getElementById('markdown-full');
+  const arrow = document.getElementById('md-toggle-arrow');
+  const open  = box.classList.toggle('open');
+  arrow.textContent = open ? '▼' : '▶';
+}
+
+// ── STEP 4: RAG EXTRACTION ────────────────────────────────
+function initStep4() {
+  if (!sessionData) return;
+  document.getElementById('rag-pdf-name').textContent = sessionData.pdf_name || '—';
+  document.getElementById('rag-pdf-hash').textContent = 'hash: ' + (sessionData.pdf_hash || '—').slice(0, 12) + '…';
+}
+
+async function runRag() {
+  if (!sessionData) return;
+
+  const btn = document.getElementById('rag-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> RAG 실행 중…';
+  setBanner(4, 'info', '벡터 DB를 구축하고 논문에서 방법론을 추출하고 있습니다…');
+  setStatus('rag', 'info', '추출 중…');
+
+  try {
+    const res = await fetch('/api/run-rag', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionData.session_id, top_k: 5 }),
+    });
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.detail || 'RAG 실패');
+
+    const result = payload.result || {};
+    sessionData.paper_method_spec = result.paper_method_spec || {};
+    renderRagResult(result);
+
+    setStatus('rag', 'ok', '추출 완료');
+    markDone(4);
+    unlockStep(5);
+    initStep5();
+
+    btn.style.display = 'none';
+    document.getElementById('rag-next-btn').style.display = '';
+
+  } catch (err) {
+    setBanner(4, 'error', `오류: <strong>${esc(err.message)}</strong>`);
+    setStatus('rag', 'error', '추출 실패');
+    btn.disabled = false;
+    btn.innerHTML = 'RAG 재시도';
+  }
+}
+
+function renderRagResult(result) {
+  const spec       = result.paper_method_spec || {};
+  const model      = spec.model           || {};
+  const feature    = spec.feature         || {};
+  const hpSection  = spec.hyperparameters || {};
+  const hpValues   = hpSection.values     || {};
+  const training   = spec.training        || {};
+  const metricsSec = spec.metrics         || {};
+  const reported   = metricsSec.reported  || {};
+
+  // ── helper: source badge ──
+  function srcBadge(type) {
+    const C = {
+      found:   { bg:'var(--green-dim)', color:'var(--green)', border:'rgba(62,207,142,0.3)',   text:'논문 명시' },
+      default: { bg:'var(--amber-dim)', color:'var(--amber)', border:'rgba(245,166,35,0.3)',   text:'Default 적용' },
+      missing: { bg:'var(--red-dim)',   color:'var(--red)',   border:'rgba(224,92,106,0.3)',   text:'미발견' },
+    };
+    const c = C[type] || C.missing;
+    return `<span style="background:${c.bg};color:${c.color};border:1px solid ${c.border};border-radius:999px;padding:1px 8px;font-size:0.62rem;font-weight:600;flex-shrink:0">${c.text}</span>`;
+  }
+
+  // ── source classification ──
+  const modelSrc  = model.name ? 'found' : 'missing';
+  const metricSrc = Object.keys(reported).length > 0 ? 'found' : 'missing';
+  const hpSrc     = Object.keys(hpValues).length > 0 ? 'found' : 'default';
+  const trainSrc  = training.split_strategy ? 'found' : 'missing';
+  const featSrc   = (feature.method && feature.method !== '미확인' && feature.method !== 'Not found') ? 'found' : 'missing';
+
+  // ── ROW 1: 모델 + 논문 Metric ──
+  const metricColorMap = { MAE:'var(--green)', R2:'var(--accent)', 'R²':'var(--accent)', RMSE:'var(--text-primary)', MSE:'var(--text-primary)' };
+  const metricMinis = Object.entries(reported).map(([k, v]) => {
+    const color = metricColorMap[k] || 'var(--text-primary)';
+    return `<div style="background:var(--bg-base);border-radius:var(--radius-sm);padding:8px">
+      <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em">${esc(k)}</div>
+      <div style="font-family:var(--font-mono);font-size:1.05rem;font-weight:700;color:${color}">${esc(String(v))}</div>
+    </div>`;
+  }).join('');
+
+  const modelBorderColor = modelSrc === 'found' ? 'rgba(62,207,142,0.3)' : 'rgba(224,92,106,0.3)';
+  const metricBorderColor = metricSrc === 'found' ? 'rgba(62,207,142,0.3)' : 'rgba(224,92,106,0.3)';
+
+  const row1 = `<div class="rag-grid">
+    <div class="rag-card" style="border-color:${modelBorderColor}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div class="rag-card-label" style="margin-bottom:0">🧠 모델</div>
+        ${srcBadge(modelSrc)}
+      </div>
+      <div class="rag-value">${esc(model.name || '미확인')}</div>
+      ${model.key_values ? `<div style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;margin-bottom:8px;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical">${esc(model.key_values)}</div>` : '<div style="margin-top:6px;margin-bottom:8px"></div>'}
+      <div class="confidence-bar-wrap">
+        <div class="label"><span>추출 신뢰도</span><span class="evidence-score">${model.name ? '90%' : '30%'}</span></div>
+        <div class="confidence-bar"><div class="confidence-fill" style="width:${model.name ? '90%' : '30%'}"></div></div>
+      </div>
+    </div>
+    <div class="rag-card" style="border-color:${metricBorderColor}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div class="rag-card-label" style="margin-bottom:0">🎯 논문 Metric (reported)</div>
+        ${srcBadge(metricSrc)}
+      </div>
+      ${metricMinis
+        ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">${metricMinis}</div>`
+        : `<div style="margin-top:8px;font-size:0.78rem;color:var(--text-muted)">${esc(metricsSec.key_values || '논문에 metric 값 없음')}</div>`}
+    </div>
+  </div>`;
+
+  // ── ROW 2: 하이퍼파라미터 + 학습 설정 ──
+  const hpRows = Object.entries(hpValues).map(([k, v]) =>
+    `<div style="display:flex;align-items:center;justify-content:space-between">
+      <span><span style="color:var(--cyan)">${esc(k)}</span> = <span style="color:var(--amber)">${esc(String(v))}</span></span>
+      <span style="font-size:0.6rem;font-family:var(--font-sans);background:var(--green-dim);color:var(--green);padding:1px 6px;border-radius:999px">paper</span>
+    </div>`
+  ).join('');
+
+  const hpBorderColor = hpSrc === 'found' ? 'rgba(62,207,142,0.3)' : 'rgba(245,166,35,0.3)';
+  const trainBorderColor = trainSrc === 'found' ? 'rgba(62,207,142,0.3)' : 'rgba(224,92,106,0.3)';
+
+  const testSize  = training.test_size ?? 0.2;
+  const trainPct  = Math.round((1 - testSize) * 100);
+  const testPct   = Math.round(testSize * 100);
+
+  const row2 = `<div class="rag-grid">
+    <div class="rag-card" style="border-color:${hpBorderColor}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="rag-card-label" style="margin-bottom:0">⚙ 하이퍼파라미터</div>
+        ${srcBadge(hpSrc)}
+      </div>
+      ${hpRows
+        ? `<div style="font-family:var(--font-mono);font-size:0.72rem;line-height:2.1;color:var(--text-secondary)">${hpRows}</div>`
+        : `<div style="margin-top:6px;padding:6px 8px;background:var(--amber-dim);border-radius:var(--radius-sm);font-size:0.66rem;color:var(--amber);line-height:1.5">⚠ 논문에 하이퍼파라미터 설정이 명시되지 않아 sklearn 기본값을 사용합니다.</div>`}
+    </div>
+    <div class="rag-card" style="border-color:${trainBorderColor}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="rag-card-label" style="margin-bottom:0">📊 학습 설정</div>
+        ${srcBadge(trainSrc)}
+      </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:4px">분할 전략</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);font-family:var(--font-mono)">${esc(training.split_strategy || 'Not Found')}</span>
+          ${!training.split_strategy ? `<span style="font-size:0.62rem;background:var(--amber-dim);color:var(--amber);padding:1px 6px;border-radius:999px">→ random split (default)</span>` : ''}
+        </div>
+      </div>
+      <div style="margin-bottom:${training.random_state != null ? '10px' : '0'}">
+        <div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:4px">test_size</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);font-family:var(--font-mono)">${training.test_size != null ? training.test_size : 'Not Found'}</span>
+          ${training.test_size == null ? `<span style="font-size:0.62rem;background:var(--amber-dim);color:var(--amber);padding:1px 6px;border-radius:999px">→ 0.2 (default)</span>` : ''}
+        </div>
+        <div style="margin-top:8px;display:flex;gap:6px">
+          <div style="flex:${trainPct};background:var(--accent-dim);border-radius:999px;height:5px"></div>
+          <div style="flex:${testPct};background:var(--amber-dim);border-radius:999px;height:5px"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:0.6rem;color:var(--text-muted)">
+          <span>Train ${trainPct}%</span><span>Test ${testPct}%</span>
+        </div>
+      </div>
+      ${training.random_state != null ? `<div>
+        <div style="font-size:0.65rem;color:var(--text-muted);margin-bottom:4px">random_state</div>
+        <span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);font-family:var(--font-mono)">${training.random_state}</span>
+      </div>` : ''}
+    </div>
+  </div>`;
+
+  // ── FEATURE CARD (full width) ──
+  const featureChips = [];
+  if (feature.fingerprint_family) {
+    featureChips.push(`<span class="feature-chip fp"><span class="chip-dot"></span>${esc(feature.fingerprint_family)} radius=${feature.radius ?? '?'} n_bits=${feature.n_bits ?? '?'}</span>`);
+  }
+  (feature.retained_input_features || []).forEach(name => featureChips.push(`<span class="feature-chip" style="color:var(--accent);border-color:rgba(74,144,226,0.28);background:var(--accent-dim)"><span class="chip-dot"></span>column: ${esc(name)}</span>`));
+  (feature.derived_feature_names || []).forEach(name => featureChips.push(`<span class="feature-chip" style="color:#2f9e63;border-color:rgba(47,158,99,0.25);background:rgba(47,158,99,0.12)"><span class="chip-dot"></span>derived: ${esc(name)}</span>`));
+  (feature.class_label_names || []).forEach(name => featureChips.push(`<span class="feature-chip" style="color:#d17f00;border-color:rgba(209,127,0,0.24);background:rgba(209,127,0,0.10)"><span class="chip-dot"></span>label: ${esc(name)}</span>`));
+  (feature.descriptor_names    || []).forEach(d => featureChips.push(`<span class="feature-chip desc"><span class="chip-dot"></span>${esc(d)}</span>`));
+  (feature.count_feature_names || []).forEach(c => featureChips.push(`<span class="feature-chip count"><span class="chip-dot"></span>${esc(c)}</span>`));
+  (feature.unresolved_feature_terms || []).forEach(t => featureChips.push(`<span class="feature-chip" style="color:var(--amber);border-color:rgba(245,166,35,0.3);background:var(--amber-dim)"><span class="chip-dot"></span>${esc(t)}</span>`));
+
+  const featureCard = `<div class="card" style="margin-bottom:14px">
+    <div class="card-title">
+      <div class="card-title-icon" style="background:var(--purple-dim);color:var(--purple)">⬡</div>
+      피처 엔지니어링
+      <span style="margin-left:auto">${srcBadge(featSrc)}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+      <span style="font-size:0.7rem;color:var(--text-muted)">방법:</span>
+      <span style="font-size:0.82rem;font-weight:600;font-family:var(--font-mono);color:var(--text-primary)">${esc((feature.method && feature.method !== 'Not found') ? feature.method : '—')}</span>
+      ${feature.fingerprint_family ? `<span style="font-size:0.68rem;background:var(--purple-dim);color:var(--purple);padding:2px 8px;border-radius:999px">${esc(feature.fingerprint_family)}</span>` : ''}
+      ${feature.use_rdkit_descriptors ? `<span style="font-size:0.68rem;background:var(--accent-dim);color:var(--accent);padding:2px 8px;border-radius:999px">RDKit descriptors</span>` : ''}
+      ${feature.dataset_feature_count != null ? `<span style="font-size:0.68rem;background:rgba(47,158,99,0.12);color:#2f9e63;padding:2px 8px;border-radius:999px">dataset features=${esc(feature.dataset_feature_count)}</span>` : ''}
+    </div>
+    ${featureChips.length
+      ? `<div class="feature-chips">${featureChips.join('')}</div>`
+      : `<div style="font-size:0.78rem;color:var(--text-muted)">${esc(feature.key_values || '피처 정보 없음')}</div>`}
+  </div>`;
+
+  document.getElementById('rag-dynamic-content').innerHTML = row1 + row2 + featureCard;
+
+  // JSON spec
+  document.getElementById('spec-json-box').textContent = JSON.stringify(spec, null, 2);
+
+  // 배너
+  const method = (feature.method && feature.method !== 'Not found') ? feature.method : '미확인';
+  setBanner(4, 'success',
+    `<strong>RAG 추출 완료</strong> — 모델: <strong>${esc(model.name || '미확인')}</strong>, 피처: <strong>${esc(method)}</strong>`
+  );
+
+  document.getElementById('rag-ready-card').style.display = 'none';
+  document.getElementById('rag-result-area').style.display = '';
+}
+
+function toggleSpecJson() {
+  const box   = document.getElementById('spec-json-box');
+  const arrow = document.getElementById('spec-toggle-arrow');
+  const open  = box.classList.toggle('open');
+  arrow.textContent = open ? '▼' : '▶';
+}
+
+// ── STEP 5: CODE GENERATION ───────────────────────────────
+function initStep5() {
+  if (!sessionData) return;
+  const spec    = sessionData.paper_method_spec || {};
+  const model   = spec.model   || {};
+  const feature = spec.feature || {};
+
+  document.getElementById('gen-ctx-model').textContent     = model.name       || '미확인';
+  document.getElementById('gen-ctx-model-sub').textContent = model.key_values || model.summary || '';
+
+  document.getElementById('gen-ctx-feature').textContent = (feature.method && feature.method !== 'Not found') ? feature.method : '미확인';
+  const fsubs = [];
+  if (feature.fingerprint_family) fsubs.push(`${feature.fingerprint_family} r=${feature.radius ?? '?'}`);
+  if ((feature.retained_input_features || []).length) fsubs.push(`columns ×${feature.retained_input_features.length}`);
+  if ((feature.derived_feature_names || []).length) fsubs.push(`derived ×${feature.derived_feature_names.length}`);
+  if ((feature.descriptor_names    || []).length) fsubs.push(`descriptor ×${feature.descriptor_names.length}`);
+  if ((feature.count_feature_names || []).length) fsubs.push(`count ×${feature.count_feature_names.length}`);
+  if (feature.dataset_feature_count != null) fsubs.push(`paper count ${feature.dataset_feature_count}`);
+  document.getElementById('gen-ctx-feature-sub').textContent = fsubs.join(' · ') || (feature.key_values || '—');
+
+  document.getElementById('gen-ctx-data').textContent     = sessionData.data_name    || '—';
+  document.getElementById('gen-ctx-data-sub').textContent = `${sessionData.smiles_column} → ${sessionData.target_column}`;
+}
+
+async function generateCode() {
+  if (!sessionData) return;
+
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> 코드 생성 중…';
+  setBanner(5, 'info', '논문 스펙으로 Python 회귀 코드를 생성하고 실행 중입니다. 최대 4회 디버그 루프가 진행될 수 있습니다…');
+  setStatus('gen', 'info', '생성 중…');
+
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionData.session_id }),
+    });
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.detail || '코드 생성 실패');
+
+    loopResult = payload.result || {};
+    const finalOutput = loopResult.final_output || {};
+
+    renderGenerationResult(finalOutput);
+    renderExecutionResult(finalOutput);
+
+    const execResult = finalOutput.execution_result || {};
+    const isSuccess  = execResult.status === 'success' && execResult.returncode === 0;
+
+    if (isSuccess) {
+      setStatus('gen', 'ok', `완료 (${finalOutput.iteration}회 시도)`);
+      markDone(5);
+      markDone(6);
+      unlockStep(6);
+      btn.style.display = 'none';
+      document.getElementById('gen-next-btn').style.display = '';
+      setBanner(5, 'success', `<strong>완료</strong> — ${finalOutput.iteration}회 시도 만에 실행 성공. 실행 결과 보기를 클릭하세요.`);
+    } else {
+      setStatus('gen', 'warn', `실패 (${finalOutput.iteration}회 시도)`);
+      setBanner(5, 'error', `<strong>실행 실패</strong> — ${esc(finalOutput.stop_reason || finalOutput.error || '알 수 없는 오류')}`);
+      unlockStep(6);
+      btn.innerHTML = '코드 재생성';
+      btn.disabled  = false;
+      document.getElementById('gen-next-btn').style.display = '';
+    }
+
+  } catch (err) {
+    setBanner(5, 'error', `오류: <strong>${esc(err.message)}</strong>`);
+    setStatus('gen', 'error', '실패');
+    btn.innerHTML = '코드 재생성';
+    btn.disabled  = false;
+  }
+}
+
+function renderGenerationResult(finalOutput) {
+  const errorHistory = finalOutput.error_history || [];
+  const iteration    = finalOutput.iteration     || 0;
+  const execResult   = finalOutput.execution_result || {};
+  const isSuccess    = execResult.status === 'success' && execResult.returncode === 0;
+
+  // iteration count badge
+  document.getElementById('gen-iter-badge-wrap').innerHTML =
+    `<span class="parse-meta-chip ${isSuccess ? 'green' : ''}">${iteration}회 시도</span>`;
+
+  // timeline — improved failure log display
+  const timelineEl = document.getElementById('gen-iter-timeline');
+  const items = [];
+
+  errorHistory.forEach(entry => {
+    const msg    = (entry.message || entry.stderr || '').trim();
+    const stderr = (entry.stderr || '').trim();
+    // Show stderr if different and available, otherwise show message
+    const primary = msg || '(오류 메시지 없음)';
+    // Show last 8 lines for quick view
+    const shortLines = primary.split('\n').slice(-8).join('\n');
+    const errId = `iter-err-${entry.iteration}`;
+    const hasMore = primary.split('\n').length > 8;
+    items.push(`
+      <div class="iter-item">
+        <div class="iter-badge err">${entry.iteration}</div>
+        <div class="iter-content">
+          <div class="iter-label">시도 ${entry.iteration} — 실패</div>
+          <div class="iter-error-short">${esc(shortLines)}</div>
+          ${hasMore ? `<button class="reasoning-toggle" style="margin:4px 0 0;font-size:0.65rem" onclick="toggleIterErr('${errId}')"><span id="${errId}-arrow">▶</span> 전체 오류 보기</button><div class="reasoning-box" id="${errId}" style="max-height:200px;overflow-y:auto;margin-top:4px">${esc(primary)}</div>` : ''}
+          ${stderr && stderr !== msg ? `<div style="margin-top:6px;font-size:0.65rem;color:var(--text-muted)">stderr:</div><div class="iter-error-short" style="opacity:0.7;margin-top:2px">${esc(stderr.split('\n').slice(-5).join('\n'))}</div>` : ''}
+        </div>
+      </div>`);
+  });
+
+  const finalBadge = isSuccess ? 'ok' : 'err';
+  const finalLabel = isSuccess ? '성공' : '실패';
+  const finalNote  = finalOutput.stop_reason || (isSuccess ? '정상 완료' : (finalOutput.latest_error || '').trim().split('\n').slice(-3).join('\n'));
+  items.push(`
+    <div class="iter-item">
+      <div class="iter-badge ${finalBadge}">${isSuccess ? '✓' : '✗'}</div>
+      <div class="iter-content">
+        <div class="iter-label">최종 실행 — ${finalLabel}</div>
+        ${finalNote ? `<div class="iter-detail">${esc(String(finalNote))}</div>` : ''}
+      </div>
+    </div>`);
+
+  timelineEl.innerHTML = items.join('');
+
+  // code
+  const code = finalOutput.generated_code || '';
+  document.getElementById('gen-code-block').textContent = code;
+
+  const savedArtifacts = finalOutput.saved_artifacts || {};
+  const displayCodePath =
+    savedArtifacts.final_code_path ||
+    savedArtifacts.generated_code_path ||
+    finalOutput.generated_code_path ||
+    '';
+  document.getElementById('gen-code-path-chip').textContent = displayCodePath
+    ? displayCodePath.split('/').slice(-1)[0]
+    : '';
+
+  document.getElementById('gen-result-area').style.display = '';
+}
+
+// ── STEP 6: EXECUTION RESULTS ─────────────────────────────
+function renderExecutionResult(finalOutput) {
+  const execResult   = finalOutput.execution_result || {};
+  const parsedOutput = execResult.parsed_output     || {};
+  const reproductionSummary = finalOutput.reproduction_summary || {};
+  const isSuccess    = execResult.status === 'success' && execResult.returncode === 0;
+
+  resetExecutionResultCards();
+
+  // ── 상태 바 ──
+  const statusBar = document.getElementById('exec-status-bar');
+  statusBar.className   = `exec-status-bar ${isSuccess ? 'success' : 'failed'}`;
+  statusBar.textContent = isSuccess
+    ? `✓ 실행 성공 (returncode ${execResult.returncode ?? 0})`
+    : `✗ 실행 실패 — ${finalOutput.stop_reason || finalOutput.error || '오류'}`;
+  statusBar.style.display = '';
+
+  // ── 가정 사항 ──
+  const assumptions = extractAssumptionNotes(parsedOutput.assumptions);
+  if (assumptions.length) {
+    document.getElementById('assumptions-box').innerHTML =
+      '<ol style="margin:4px 0 0 16px;padding:0;display:flex;flex-direction:column;gap:6px">' +
+      assumptions.map(a => `<li style="font-size:0.75rem;color:var(--text-secondary);line-height:1.6">${esc(a)}</li>`).join('') +
+      '</ol>';
+    document.getElementById('assumptions-card').style.display = '';
+  }
+
+  // ── 지표 비교 ──
+  // parsed_output.paper_reported_metrics가 있으면 우선 사용, 없으면 세션 spec fallback
+  const paperMetrics = reproductionSummary.paper_metrics
+    || parsedOutput.paper_reported_metrics
+    || (sessionData?.paper_method_spec?.metrics?.reported) || {};
+  const reproMetrics = reproductionSummary.reproduced_metrics
+    || parsedOutput.metrics || execResult.metrics || {};
+  const metricOrder  = ['MAE', 'RMSE', 'MSE', 'R2'];
+  const lowerBetter  = new Set(['MAE', 'RMSE', 'MSE']);
+
+  const summaryMetricRows = Array.isArray(reproductionSummary.metric_rows) ? reproductionSummary.metric_rows : [];
+  const metricRows = summaryMetricRows.length
+    ? summaryMetricRows.map(row => ({ m: row.metric, paper: row.paper, repro: row.reproduced }))
+    : metricOrder
+        .map(m => ({ m, paper: paperMetrics[m], repro: reproMetrics[m] }))
+        .filter(r => r.paper != null || r.repro != null);
+
+  if (metricRows.length) {
+    const fmt = v => v != null ? Number(v).toFixed(4) : '<span style="color:var(--text-muted)">—</span>';
+    document.getElementById('metrics-compare-body').innerHTML = metricRows.map(({ m, paper, repro }) => {
+      let diffHtml = '<span style="color:var(--text-muted)">—</span>';
+      if (paper != null && repro != null) {
+        const diff   = repro - paper;
+        const isGood = lowerBetter.has(m) ? diff <= 0 : diff >= 0;
+        const sign   = diff > 0 ? '+' : '';
+        diffHtml = `<span class="${isGood ? 'diff-good' : 'diff-bad'}">${sign}${diff.toFixed(4)}</span>`;
+      }
+      return `<tr>
+        <td>${m}</td>
+        <td>${fmt(paper)}</td>
+        <td>${fmt(repro)}</td>
+        <td>${diffHtml}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('metrics-compare-card').style.display = '';
+  }
+
+  // ── scatter plot ──
+  const yTest = parsedOutput.y_test || execResult.y_test || [];
+  const yPred = parsedOutput.y_pred || execResult.y_pred || [];
+  const scatterPairs = buildScatterPairs(yTest, yPred);
+  if (scatterPairs.length) {
+    renderScatterPlot(scatterPairs);
+  }
+
+  // ── reproduction analysis summary ──
+  if (Array.isArray(reproductionSummary.paragraphs) && reproductionSummary.paragraphs.length) {
+    renderAnalysisSummaryCard(reproductionSummary);
+  } else if (Object.keys(paperMetrics).length && Object.keys(reproMetrics).length) {
+    renderAnalysisSummary(paperMetrics, reproMetrics);
+  }
+
+  // ── stdout ──
+  const stdout = execResult.stdout || finalOutput.latest_stdout || '';
+  if (stdout.trim()) {
+    document.getElementById('log-stdout').textContent = stdout;
+    document.getElementById('stdout-card').style.display = '';
+  }
+
+  // ── stderr ──
+  const stderr = execResult.stderr || finalOutput.latest_stderr || '';
+  if (stderr.trim()) {
+    document.getElementById('log-stderr').textContent = stderr;
+    document.getElementById('stderr-card').style.display = '';
+  }
+
+  setBanner(6, isSuccess ? 'success' : 'error',
+    isSuccess
+      ? `<strong>실행 성공</strong> — 코드가 정상 실행되었습니다.`
+      : `<strong>실행 실패</strong> — ${esc(finalOutput.stop_reason || finalOutput.error || '오류')}`
+  );
+  if (isSuccess) enableSaveButton();
+}
+
+function resetExecutionResultCards() {
+  ['assumptions-card', 'metrics-compare-card', 'scatter-card', 'analysis-summary-card', 'stdout-card', 'stderr-card'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  document.getElementById('metrics-compare-body').innerHTML = '';
+  document.getElementById('analysis-summary-body').innerHTML = '';
+  document.getElementById('scatter-container').innerHTML = '';
+  document.getElementById('scatter-count-label').textContent = '';
+  document.getElementById('log-stdout').textContent = '';
+  document.getElementById('log-stderr').textContent = '';
+  document.getElementById('assumptions-box').innerHTML = '';
+}
+
+
+function toggleIterErr(id) {
+  const box = document.getElementById(id);
+  const arr = document.getElementById(id + '-arrow');
+  if (!box) return;
+  arr.textContent = box.classList.toggle('open') ? '▼' : '▶';
+}
+
+function toggleGenCode() {
+  const box = document.getElementById('gen-code-block');
+  const arr = document.getElementById('gen-code-arrow');
+  arr.textContent = box.classList.toggle('open') ? '▼' : '▶';
+}
+
+function toggleLog(type) {
+  const box = document.getElementById(`log-${type}`);
+  const arr = document.getElementById(`${type}-arrow`);
+  arr.textContent = box.classList.toggle('open') ? '▼' : '▶';
+}
+
+// ── SCATTER PLOT ──────────────────────────────────────────
+function buildScatterPairs(yTest, yPred) {
+  if (!Array.isArray(yTest) || !Array.isArray(yPred)) return [];
+  const pairCount = Math.min(yTest.length, yPred.length);
+  const pairs = [];
+  for (let i = 0; i < pairCount; i++) {
+    const actual = Number(yTest[i]);
+    const predicted = Number(yPred[i]);
+    if (!Number.isFinite(actual) || !Number.isFinite(predicted)) continue;
+    pairs.push({ actual, predicted });
+  }
+  return pairs;
+}
+
+function renderScatterPlot(scatterPairs) {
+  if (!Array.isArray(scatterPairs) || !scatterPairs.length) return;
+  const W = 420, H = 300, M = 48;
+  const plotW = W - 2 * M, plotH = H - 2 * M;
+
+  const actualValues = scatterPairs.map(pair => pair.actual);
+  const predictedValues = scatterPairs.map(pair => pair.predicted);
+  const allVals = [...actualValues, ...predictedValues];
+  const vMin = Math.min(...allVals);
+  const vMax = Math.max(...allVals);
+  const range = vMax - vMin || 1;
+  const lo = vMin - range * 0.05;
+  const hi = vMax + range * 0.05;
+  const rng = hi - lo;
+
+  const toX = v => M + (v - lo) / rng * plotW;
+  const toY = v => M + plotH - (v - lo) / rng * plotH;
+
+  // Axis ticks
+  const nTicks = 5;
+  const xTicks = [], yTicks = [];
+  for (let i = 0; i <= nTicks; i++) {
+    const v = lo + rng * i / nTicks;
+    xTicks.push(`<line x1="${toX(v)}" y1="${M + plotH}" x2="${toX(v)}" y2="${M + plotH + 4}" stroke="var(--border)" stroke-width="1"/>
+      <text x="${toX(v)}" y="${M + plotH + 16}" text-anchor="middle" class="axis-label">${v.toFixed(0)}</text>`);
+    yTicks.push(`<line x1="${M - 4}" y1="${toY(v)}" x2="${M}" y2="${toY(v)}" stroke="var(--border)" stroke-width="1"/>
+      <text x="${M - 8}" y="${toY(v) + 3}" text-anchor="end" class="axis-label">${v.toFixed(0)}</text>`);
+  }
+
+  // Data points (use opacity for density)
+  const pts = scatterPairs.map(({ actual, predicted }) =>
+    `<circle cx="${toX(actual).toFixed(1)}" cy="${toY(predicted).toFixed(1)}" r="2.8" fill="var(--accent)" opacity="0.55"/>`
+  ).join('');
+
+  const svg = `<svg width="100%" viewBox="0 0 ${W} ${H}">
+    <!-- grid lines -->
+    <rect x="${M}" y="${M}" width="${plotW}" height="${plotH}" fill="none" stroke="var(--border)" stroke-width="1"/>
+    <!-- diagonal y=x reference -->
+    <line x1="${toX(lo)}" y1="${toY(lo)}" x2="${toX(hi)}" y2="${toY(hi)}" stroke="var(--accent)" stroke-width="1.2" stroke-dasharray="5 3" opacity="0.5"/>
+    <text x="${toX(hi) - 4}" y="${toY(hi) - 6}" text-anchor="end" class="axis-label" style="fill:var(--accent)">y=x</text>
+    <!-- ticks -->
+    ${xTicks.join('')}
+    ${yTicks.join('')}
+    <!-- points -->
+    ${pts}
+    <!-- axis labels -->
+    <text x="${M + plotW / 2}" y="${H - 4}" text-anchor="middle" class="axis-label">실제값 (Actual)</text>
+    <text x="11" y="${M + plotH / 2}" text-anchor="middle" class="axis-label" transform="rotate(-90 11 ${M + plotH / 2})">예측값 (Predicted)</text>
+  </svg>`;
+
+  document.getElementById('scatter-container').innerHTML = svg;
+  document.getElementById('scatter-count-label').textContent = `${scatterPairs.length}개 포인트`;
+  document.getElementById('scatter-card').style.display = '';
+}
+
+// ── REPRODUCTION ANALYSIS SUMMARY ─────────────────────────
+function renderAnalysisSummary(paperMetrics, reproMetrics) {
+  const lowerBetter = new Set(['MAE', 'RMSE', 'MSE']);
+  const metricOrder = ['MAE', 'RMSE', 'MSE', 'R2'];
+  let goodCount = 0, partialCount = 0, failCount = 0;
+
+  const metricResults = [];
+  for (const m of metricOrder) {
+    const paperVal = paperMetrics[m];
+    const reproVal = reproMetrics[m];
+    if (paperVal == null || reproVal == null) continue;
+    const relErr = Math.abs((reproVal - paperVal) / (Math.abs(paperVal) || 1));
+    const diff    = reproVal - paperVal;
+    const isGood  = lowerBetter.has(m) ? diff <= 0 : diff >= 0;
+    let level;
+    if (relErr <= 0.05)      { level = 'good';    goodCount++; }
+    else if (relErr <= 0.20) { level = 'partial'; partialCount++; }
+    else                     { level = 'fail';    failCount++; }
+    metricResults.push({ m, paperVal, reproVal, diff, relErr, isGood, level });
+  }
+
+  const total = goodCount + partialCount + failCount;
+  if (!total) return;
+
+  // ── 종합 판정 문구 ──
+  let overallCls, overallLine;
+  if (goodCount === total) {
+    overallCls  = 'good';
+    overallLine = `논문에서 보고된 모든 지표(${metricResults.map(r => r.m).join(', ')})가 5% 이내 오차로 재현되었습니다. 파이프라인이 논문 실험을 충실히 재현했습니다.`;
+  } else if (failCount === 0) {
+    overallCls  = 'partial';
+    overallLine = `주요 지표가 대체로 재현되었으나 일부 오차(20% 이내)가 존재합니다. 논문에 명시되지 않은 전처리·하이퍼파라미터 세부사항이 영향을 미쳤을 수 있습니다.`;
+  } else if (goodCount + partialCount > 0) {
+    overallCls  = 'partial';
+    overallLine = `일부 지표는 재현되었으나 ${failCount}개 지표에서 20%를 초과하는 차이가 발생했습니다. 논문의 피처 엔지니어링 또는 데이터 분할 방식 차이를 확인하세요.`;
+  } else {
+    overallCls  = 'fail';
+    overallLine = `재현 지표가 논문 보고값과 크게 차이납니다. 피처 방법, 데이터셋 전처리, 모델 설정 등을 재검토하세요.`;
+  }
+
+  // ── 지표별 텍스트 설명 ──
+  const metricLines = metricResults.map(({ m, paperVal, reproVal, diff, relErr, isGood, level }) => {
+    const sign    = diff > 0 ? '+' : '';
+    const pct     = (relErr * 100).toFixed(1);
+    const dirWord = lowerBetter.has(m)
+      ? (diff < 0 ? '낮아' : '높아')
+      : (diff > 0 ? '높아' : '낮아');
+    const qualWord = level === 'good' ? '오차 범위 내' : level === 'partial' ? '소폭 차이' : '유의미한 차이';
+    const cls = level === 'good' ? 'diff-good' : level === 'partial' ? '' : 'diff-bad';
+    return `<div class="analysis-text-row">
+      <span class="analysis-metric">${esc(m)}</span>
+      <span class="analysis-badge ${level}">${level === 'good' ? '재현 성공' : level === 'partial' ? '부분 재현' : '재현 실패'}</span>
+      <span class="analysis-text-desc">
+        논문 <strong>${Number(paperVal).toFixed(4)}</strong> → 재현 <strong>${Number(reproVal).toFixed(4)}</strong>
+        &nbsp;<span class="${cls}">(${sign}${diff.toFixed(4)}, ${pct}%)</span>
+        &nbsp;— 재현값이 논문보다 ${dirWord} ${qualWord}
+      </span>
+    </div>`;
+  });
+
+  // ── 종합 해석 한 줄 ──
+  const reproRate = Math.round((goodCount + partialCount * 0.5) / total * 100);
+  const mae = metricResults.find(r => r.m === 'MAE');
+  const r2  = metricResults.find(r => r.m === 'R2');
+  const interpParts = [];
+  if (mae) interpParts.push(`MAE 기준 재현 오차는 ${(mae.relErr * 100).toFixed(1)}%`);
+  if (r2)  interpParts.push(`R² 차이는 ${Math.abs(r2.diff).toFixed(4)}`);
+  const interpLine = interpParts.length
+    ? `<p class="analysis-interp">${interpParts.join(', ')}입니다. 재현율 약 <strong>${reproRate}%</strong>로 평가됩니다.</p>`
+    : '';
+
+  document.getElementById('analysis-summary-body').innerHTML = `
+    <div class="analysis-overall ${overallCls}">
+      <p style="margin:0;line-height:1.6;font-size:0.8rem;font-weight:500">${overallLine}</p>
+    </div>
+    ${interpLine}
+    <div class="analysis-text-rows">${metricLines.join('')}</div>
+    <div class="analysis-note">* 상대 오차 ≤5%: 재현 성공 / ≤20%: 부분 재현 / &gt;20%: 재현 실패</div>
+  `;
+  document.getElementById('analysis-summary-card').style.display = '';
+}
+
+function renderAnalysisSummaryCard(summary) {
+  const statusClass = summary.status === 'good'
+    ? 'good'
+    : (summary.status === 'partial' || summary.status === 'limited' ? 'partial' : 'fail');
+  const safeParagraphs = filterAnalysisSummaryParagraphs(summary.paragraphs || []);
+  const paragraphs = safeParagraphs
+    .map(line => `<p class="analysis-interp" style="margin:0 0 10px 0">${esc(line)}</p>`)
+    .join('');
+  const safeHeadline = sanitizeAnalysisSummaryLine(summary.headline || '재현 분석 요약') || '재현 분석 요약';
+
+  document.getElementById('analysis-summary-body').innerHTML = `
+    <div class="analysis-overall ${statusClass}">
+      <p style="margin:0;line-height:1.6;font-size:0.82rem;font-weight:600">${esc(safeHeadline)}</p>
+    </div>
+    <div class="analysis-text-rows" style="margin-top:12px">${paragraphs}</div>
+  `;
+  document.getElementById('analysis-summary-card').style.display = '';
+}
+
+function filterAnalysisSummaryParagraphs(lines) {
+  if (!Array.isArray(lines)) return [];
+  return lines
+    .map(sanitizeAnalysisSummaryLine)
+    .filter(Boolean);
+}
+
+function sanitizeAnalysisSummaryLine(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+
+  const codeLikePatterns = [
+    /^spec\s*=/i,
+    /^assumptions\s*=/i,
+    /^def\s+\w+\s*\(/i,
+    /^class\s+\w+/i,
+    /^from\s+\S+\s+import\s+/i,
+    /^import\s+\S+/i,
+  ];
+  if (codeLikePatterns.some(pattern => pattern.test(text))) return '';
+  if (text.includes('```')) return '';
+  if ((text.includes('{') && text.includes('}')) || (text.includes('[') && text.includes(']'))) {
+    if (text.length > 80) return '';
+  }
+  return text;
+}
+
+function extractAssumptionNotes(rawAssumptions) {
+  const notes = [];
+
+  const pushNote = (value) => {
+    const text = String(value || '').trim();
+    if (text && !notes.includes(text)) notes.push(text);
+  };
+
+  const visit = (value) => {
+    if (value == null) return;
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (typeof value === 'object') {
+      if (Array.isArray(value.notes)) value.notes.forEach(pushNote);
+      if (Array.isArray(value.assumptions)) value.assumptions.forEach(pushNote);
+      return;
+    }
+    pushNote(value);
+  };
+
+  visit(rawAssumptions);
+  return notes;
+}
+
+// ── UI HELPERS ────────────────────────────────────────────
+function setBanner(screen, type, html) {
+  const el = document.getElementById(`banner-${screen}`);
+  if (!el) return;
+  el.className = 'info-banner' + (type !== 'info' ? ' ' + type : '');
+  const icons = { info: '💡', error: '⚠', success: '✓' };
+  el.innerHTML = `<div class="info-banner-icon">${icons[type] || '💡'}</div><div class="info-banner-text">${html}</div>`;
+}
+
+function setStatus(key, dotClass, text) {
+  const dot    = document.getElementById(`dot-${key}`);
+  const status = document.getElementById(`status-${key}`);
+  if (dot)    dot.className = `status-dot ${dotClass}`;
+  if (status) status.textContent = text;
+}
+
+// ── TOAST ──────────────────────────────────────────────────
+function showToast(message, type, durationMs) {
+  type = type || 'info';
+  durationMs = durationMs || 3000;
+  var container = document.getElementById('toast-container');
+  if (!container) return;
+  var toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(function() {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(20px)';
+    toast.style.transition = 'opacity 0.25s, transform 0.25s';
+    setTimeout(function() { if (toast.parentNode) toast.remove(); }, 250);
+  }, durationMs);
+}
+
+// ── SAVE RESULT BUTTON ────────────────────────────────────
+function enableSaveButton() {
+  var btn = document.getElementById('save-result-btn');
+  if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+}
+
+async function saveResult() {
+  if (!sessionData || !loopResult) return;
+  var btn = document.getElementById('save-result-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.innerHTML = '&#8987; 저장 중…'; }
+  var finalOutput = (loopResult && loopResult.final_output) ? loopResult.final_output : {};
+  try {
+    var res = await fetch('/api/save-result', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionData.session_id, final_output: finalOutput }),
+    });
+    var payload = await res.json();
+    if (!res.ok) throw new Error(payload.detail || '저장 실패');
+    showToast('결과가 저장되었습니다: ' + (payload.result_id || ''), 'success');
+    if (btn) { btn.innerHTML = '&#10003; 저장 완료'; }
+  } catch (err) {
+    showToast('저장 실패: ' + err.message, 'error');
+    if (btn) { btn.innerHTML = '&#128190; 결과 저장'; btn.disabled = false; btn.style.opacity = '1'; }
+  }
+}
+
+// ── LIBRARY STATE ─────────────────────────────────────────
+var libMode        = false;
+var libResults     = [];
+var libFilter      = 'all';
+var libSelected    = new Set();
+var priorStep      = 1;
+var compareSortCol = null;
+var compareSortAsc = true;
+
+// ── LIBRARY NAVIGATION ────────────────────────────────────
+function showLibrary() {
+  priorStep = currentStep;
+  libMode   = true;
+  document.querySelectorAll('.step-screen').forEach(function(el) { el.classList.remove('active'); });
+  document.getElementById('screen-lib').classList.add('active');
+  for (var i = 1; i <= 6; i++) {
+    var nav = document.getElementById('nav-' + i);
+    if (nav) nav.classList.remove('active');
+  }
+  document.getElementById('nav-lib').classList.add('active');
+  var crumb = document.getElementById('header-crumb');
+  if (crumb) crumb.textContent = '논문 관리';
+  loadLibResults();
+}
+
+function exitLibrary() {
+  libMode = false;
+  document.getElementById('screen-lib').classList.remove('active');
+  document.getElementById('nav-lib').classList.remove('active');
+  closeComparePanel();
+  clearLibSelection();
+  goStep(priorStep);
+}
+
+// ── LIBRARY DATA ──────────────────────────────────────────
+async function loadLibResults() {
+  try {
+    var res = await fetch('/api/results');
+    var payload = await res.json();
+    if (!res.ok) throw new Error(payload.detail || '불러오기 실패');
+    libResults = payload.results || [];
+  } catch (err) {
+    libResults = [];
+    showToast('결과 목록 불러오기 실패: ' + err.message, 'error');
+  }
+  renderLibCards();
+}
+
+function setLibFilter(filter) {
+  libFilter = filter;
+  document.querySelectorAll('.lib-chip').forEach(function(chip) {
+    chip.classList.toggle('active', chip.dataset.filter === filter);
+  });
+  renderLibCards();
+}
+
+function renderLibCards() {
+  var searchQuery = ((document.getElementById('lib-search') || {}).value || '').toLowerCase();
+  var list = document.getElementById('lib-card-list');
+  if (!list) return;
+
+  var filtered = libResults.filter(function(r) {
+    var st = r.reproduction_status || '';
+    if (libFilter === 'good'    && st !== 'good') return false;
+    if (libFilter === 'partial' && st !== 'partial' && st !== 'limited') return false;
+    if (libFilter === 'failed'  && st !== 'failed'  && st !== 'poor') return false;
+    if (searchQuery && !(r.pdf_name || '').toLowerCase().includes(searchQuery)) return false;
+    return true;
+  });
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="lib-empty"><div class="lib-empty-icon">&#128235;</div><div class="lib-empty-text">저장된 결과가 없습니다.<br>Step 6에서 실행 후 결과를 저장하세요.</div></div>';
+    return;
+  }
+  list.innerHTML = filtered.map(buildLibCard).join('');
+}
+
+function buildLibCard(r) {
+  var pm  = r.paper_metrics || {};
+  var rm  = r.reproduced_metrics || {};
+  var fmt = function(v) { return (v != null) ? Number(v).toFixed(3) : '—'; };
+  var statusLabels = { good: '재현 성공', partial: '부분 재현', limited: '제한 재현', poor: '낮은 재현도', failed: '실패' };
+  var statusLabel  = statusLabels[r.reproduction_status] || r.reproduction_status || '—';
+  var isSelected   = libSelected.has(r.result_id);
+  var savedDate    = r.saved_at ? r.saved_at.split('T')[0] : '';
+  return '<div class="lib-card' + (isSelected ? ' selected' : '') + '" id="lib-card-' + esc(r.result_id) + '">' +
+    '<div class="lib-card-check" onclick="toggleLibSelect(\'' + esc(r.result_id) + '\')">' + (isSelected ? '&#10003;' : '') + '</div>' +
+    '<div class="lib-card-body">' +
+      '<div class="lib-card-top">' +
+        '<div class="lib-card-name" title="' + esc(r.pdf_name) + '">' + esc(r.pdf_name) + '</div>' +
+        '<span class="lib-model-chip">' + esc(r.model_name || 'Unknown') + '</span>' +
+        '<span class="lib-status-badge ' + esc(r.reproduction_status || 'failed') + '">' + esc(statusLabel) + '</span>' +
+      '</div>' +
+      '<div class="lib-card-meta">' + esc(r.data_name || '') + (savedDate ? ' · ' + savedDate : '') + '</div>' +
+      '<div class="lib-metrics-row">' +
+        '<div class="lib-metric-group"><div class="lib-metric-label">MAE</div><div class="lib-metric-values"><span class="lib-metric-paper">' + fmt(pm.MAE) + '</span><span class="lib-metric-sep">→</span><span class="lib-metric-repro">' + fmt(rm.MAE) + '</span></div></div>' +
+        '<div class="lib-metric-group"><div class="lib-metric-label">RMSE</div><div class="lib-metric-values"><span class="lib-metric-paper">' + fmt(pm.RMSE) + '</span><span class="lib-metric-sep">→</span><span class="lib-metric-repro">' + fmt(rm.RMSE) + '</span></div></div>' +
+        '<div class="lib-metric-group"><div class="lib-metric-label">R²</div><div class="lib-metric-values"><span class="lib-metric-paper">' + fmt(pm.R2) + '</span><span class="lib-metric-sep">→</span><span class="lib-metric-repro">' + fmt(rm.R2) + '</span></div></div>' +
+      '</div>' +
+    '</div>' +
+    '<button class="lib-card-del" title="삭제" onclick="deleteLibResult(\'' + esc(r.result_id) + '\')">&#215;</button>' +
+  '</div>';
+}
+
+// ── LIBRARY SELECTION ─────────────────────────────────────
+function toggleLibSelect(resultId) {
+  if (libSelected.has(resultId)) { libSelected.delete(resultId); } else { libSelected.add(resultId); }
+  renderLibCards();
+  updateLibSelectBar();
+}
+
+function updateLibSelectBar() {
+  var bar   = document.getElementById('lib-select-bar');
+  var count = document.getElementById('lib-select-count');
+  var n = libSelected.size;
+  if (count) count.textContent = n + '편 선택됨';
+  if (bar) bar.classList.toggle('visible', n >= 2);
+}
+
+function clearLibSelection() {
+  libSelected.clear();
+  renderLibCards();
+  updateLibSelectBar();
+}
+
+// ── LIBRARY DELETE ─────────────────────────────────────────
+async function deleteLibResult(resultId) {
+  if (!confirm('이 결과를 삭제하시겠습니까?')) return;
+  try {
+    var res = await fetch('/api/results/' + encodeURIComponent(resultId), { method: 'DELETE' });
+    var payload = await res.json();
+    if (!res.ok) throw new Error(payload.detail || '삭제 실패');
+    libResults = libResults.filter(function(r) { return r.result_id !== resultId; });
+    libSelected.delete(resultId);
+    renderLibCards();
+    updateLibSelectBar();
+    showToast('결과가 삭제되었습니다.', 'info');
+  } catch (err) {
+    showToast('삭제 실패: ' + err.message, 'error');
+  }
+}
+
+// ── LIBRARY COMPARE ────────────────────────────────────────
+function buildCompareReport() {
+  var selected = libResults.filter(function(r) { return libSelected.has(r.result_id); });
+  if (selected.length < 2) { showToast('2편 이상 선택하세요.', 'info'); return; }
+  compareSortCol = null;
+  compareSortAsc = true;
+  document.querySelectorAll('th[data-col]').forEach(function(th) { th.classList.remove('sort-asc','sort-desc'); });
+  renderCompareTable(selected);
+  var panel = document.getElementById('lib-compare-panel');
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function closeComparePanel() {
+  var panel = document.getElementById('lib-compare-panel');
+  if (panel) panel.classList.remove('visible');
+}
+
+function sortCompare(col) {
+  if (compareSortCol === col) { compareSortAsc = !compareSortAsc; }
+  else { compareSortCol = col; compareSortAsc = true; }
+  document.querySelectorAll('th[data-col]').forEach(function(th) {
+    th.classList.remove('sort-asc','sort-desc');
+    if (th.dataset.col === col) th.classList.add(compareSortAsc ? 'sort-asc' : 'sort-desc');
+  });
+  var selected = libResults.filter(function(r) { return libSelected.has(r.result_id); });
+  renderCompareTable(selected);
+}
+
+function renderCompareTable(records) {
+  var accessors = {
+    paper_mae: function(r) { return (r.paper_metrics && r.paper_metrics.MAE != null) ? r.paper_metrics.MAE : Infinity; },
+    repro_mae: function(r) { return (r.reproduced_metrics && r.reproduced_metrics.MAE != null) ? r.reproduced_metrics.MAE : Infinity; },
+    paper_r2:  function(r) { return (r.paper_metrics && r.paper_metrics.R2 != null) ? r.paper_metrics.R2 : -Infinity; },
+    repro_r2:  function(r) { return (r.reproduced_metrics && r.reproduced_metrics.R2 != null) ? r.reproduced_metrics.R2 : -Infinity; },
+  };
+  var sorted = records.slice();
+  if (compareSortCol && accessors[compareSortCol]) {
+    var acc = accessors[compareSortCol];
+    sorted.sort(function(a, b) { return compareSortAsc ? acc(a) - acc(b) : acc(b) - acc(a); });
+  }
+  var fmt = function(v) { return (v != null) ? Number(v).toFixed(4) : '—'; };
+  var pct = function(paper, repro) {
+    if (paper == null || repro == null || Number(paper) === 0) return '—';
+    var p = ((Number(repro) - Number(paper)) / Math.abs(Number(paper))) * 100;
+    var clr = Math.abs(p) <= 5 ? 'var(--green)' : (Math.abs(p) <= 20 ? 'var(--amber)' : 'var(--red)');
+    return '<span style="color:' + clr + '">' + (p >= 0 ? '+' : '') + p.toFixed(1) + '%</span>';
+  };
+  var statusLabels = { good: '재현 성공', partial: '부분 재현', limited: '제한 재현', poor: '낮은 재현도', failed: '실패' };
+  document.getElementById('compare-table-body').innerHTML = sorted.map(function(r) {
+    var pm = r.paper_metrics || {}, rm = r.reproduced_metrics || {};
+    return '<tr>' +
+      '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(r.pdf_name) + '">' + esc(r.pdf_name) + '</td>' +
+      '<td><span class="lib-model-chip">' + esc(r.model_name || '—') + '</span></td>' +
+      '<td style="color:var(--text-secondary);font-size:0.72rem">' + esc(r.data_name || '—') + '</td>' +
+      '<td class="col-target">' + fmt(pm.MAE) + '</td>' +
+      '<td>' + fmt(rm.MAE) + '</td>' +
+      '<td>' + pct(pm.MAE, rm.MAE) + '</td>' +
+      '<td class="col-target">' + fmt(pm.R2) + '</td>' +
+      '<td>' + fmt(rm.R2) + '</td>' +
+      '<td>' + pct(pm.R2, rm.R2) + '</td>' +
+      '<td><span class="lib-status-badge ' + esc(r.reproduction_status || 'failed') + '">' + esc(statusLabels[r.reproduction_status] || r.reproduction_status || '—') + '</span></td>' +
+    '</tr>';
+  }).join('');
+}
+</script>
+</body>
+</html>
